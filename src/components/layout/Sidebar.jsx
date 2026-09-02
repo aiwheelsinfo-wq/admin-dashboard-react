@@ -15,8 +15,9 @@ const Sidebar = ({ isOpen, onClose }) => {
   const navItems = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/oneway-fare', label: 'One-Way Dynamic Fare', icon: Zap, badge: 'Live' },
+    { to: '/local-taxi-fare', label: 'Local Taxi Dynamic Fare', icon: Car, badge: 'City' },
     { to: '/special-days', label: 'Festival Surge Calendar', icon: Calendar, badge: 'Holiday' },
-    { to: '/bookings', label: 'Live Bookings', icon: Car },
+    { to: '/bookings', label: 'Live Bookings', icon: ShieldCheck },
   ];
 
   return (
