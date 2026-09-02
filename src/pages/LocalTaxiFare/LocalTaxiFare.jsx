@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import ToggleSwitch from '../../components/common/ToggleSwitch';
 import SliderInput from '../../components/common/SliderInput';
 import Badge from '../../components/common/Badge';
+import StatCard from '../../components/common/StatCard';
 import RevenueSplitBar from '../../components/simulator/RevenueSplitBar';
 import { useToast } from '../../context/ToastContext';
 import axios from 'axios';
@@ -17,13 +18,18 @@ import {
   Calculator,
   Flame,
   ShieldCheck,
-  Loader2
+  Activity,
+  Users,
+  MapPin,
+  TrendingUp,
+  RefreshCw
 } from 'lucide-react';
 
 const LocalTaxiFare = () => {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [hotspots, setHotspots] = useState([]);
 
   // Global Settings State
   const [globalSettings, setGlobalSettings] = useState({
@@ -45,7 +51,12 @@ const LocalTaxiFare = () => {
     company_share_type: 'percent',
     company_share_value: 10.0,
     today_demand: 0,
-    reference_demand: 8.0,
+    active_drivers: 1020,
+    demand_supply_ratio: 1.0,
+    current_surge_multiplier: 1.0,
+    current_surge_label: 'Balanced Demand (1.0x)',
+    is_peak: false,
+    is_night: false
   });
 
   // Vehicle Categories Grid State
@@ -110,6 +121,9 @@ const LocalTaxiFare = () => {
         setGlobalSettings(res.data.global_settings);
         if (res.data.vehicles && Object.keys(res.data.vehicles).length > 0) {
           setVehicles(res.data.vehicles);
+        }
+        if (res.data.hotspots) {
+          setHotspots(res.data.hotspots);
         }
       }
     } catch (err) {
@@ -185,7 +199,7 @@ const LocalTaxiFare = () => {
     const gstAmount = globalSettings.gst_active ? (subtotalAfterSurcharge * ((globalSettings.gst_rate || 5) / 100)) : 0;
     const finalCustomerFare = subtotalAfterSurcharge + gstAmount;
 
-    // Platform share & Driver Payout
+    // Platform share & Driver Payout (90% Driver / 10% Rentox)
     let companyProfit = 0;
     if (globalSettings.company_share_active) {
       if (globalSettings.company_share_type === 'flat') {
@@ -241,18 +255,142 @@ const LocalTaxiFare = () => {
             </h1>
           </div>
           <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '4px' }}>
-            Configure city ride base fares, morning/evening peak rush surcharges, night multipliers, and driver revenue shares.
+            Uber-style live demand & supply elasticity, morning/evening peak rush surcharges, night multipliers, and 90% driver payout telemetry.
           </p>
         </div>
 
-        <button
-          onClick={handleSaveSettings}
-          disabled={isSaving}
-          className="btn-primary"
-        >
-          <Save style={{ width: '16px', height: '16px' }} />
-          <span>{isSaving ? 'Saving to AWS...' : 'Save All Settings'}</span>
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={fetchSettings}
+            className="btn-secondary"
+            title="Refresh live telemetry from AWS"
+          >
+            <RefreshCw style={{ width: '15px', height: '15px' }} />
+            <span>Refresh</span>
+          </button>
+
+          <button
+            onClick={handleSaveSettings}
+            disabled={isSaving}
+            className="btn-primary"
+          >
+            <Save style={{ width: '16px', height: '16px' }} />
+            <span>{isSaving ? 'Saving to AWS...' : 'Save All Settings'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 4 Real-time Telemetry Cards (Uber-Style) */}
+      <div className="grid-4">
+        <StatCard
+          title="Live Demand State"
+          value={globalSettings.current_surge_label}
+          icon={Flame}
+          trend={globalSettings.current_surge_multiplier > 1.0 ? `+${Math.round((globalSettings.current_surge_multiplier - 1.0) * 100)}% Surge` : 'Equilibrium'}
+          trendType={globalSettings.current_surge_multiplier > 1.0 ? 'up' : 'neutral'}
+          badge="Live Status"
+          badgeColor={globalSettings.current_surge_multiplier > 1.0 ? 'amber' : 'green'}
+        />
+
+        <StatCard
+          title="Active Online Fleet"
+          value={`${globalSettings.active_drivers} Drivers`}
+          icon={Users}
+          trend="Approved Partners"
+          trendType="neutral"
+          badge="Fleet Supply"
+          badgeColor="blue"
+        />
+
+        <StatCard
+          title="Driver Incentive Share"
+          value={`${100 - (globalSettings.company_share_value || 10)}% Net Payout`}
+          icon={TrendingUp}
+          trend="Maximizes Driver Pickup"
+          trendType="up"
+          badge="Driver Wallet"
+          badgeColor="green"
+        />
+
+        <StatCard
+          title="Rentox Commission"
+          value={`${globalSettings.company_share_value || 10}% Margin`}
+          icon={Building2}
+          trend="Platform Profit"
+          trendType="up"
+          badge="Company Share"
+          badgeColor="purple"
+        />
+      </div>
+
+      {/* City Hotspots & Surge Dispatch Heatmap Table */}
+      <div className="glass-card">
+        <div className="section-header">
+          <div>
+            <div className="section-title">
+              <MapPin style={{ width: '20px', height: '20px', color: '#f59e0b' }} />
+              <span>City Hotspot Zones & Demand Telemetry</span>
+            </div>
+            <div className="section-subtitle">
+              Real-time booking density by zone. Automatically triggers surge multipliers to pull available drivers into high-demand areas.
+            </div>
+          </div>
+          <Badge variant="amber">🔥 Live Hotspot Dispatch</Badge>
+        </div>
+
+        <div className="table-container">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>City / Pickup Zone</th>
+                <th>Ride Requests (Demand)</th>
+                <th>Available Cars (Supply)</th>
+                <th>Demand Ratio</th>
+                <th>Dynamic Surge Multiplier</th>
+                <th>Dispatch Priority</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hotspots.map((h, i) => (
+                <tr key={i}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: h.demand_ratio >= 1.5 ? '#ef4444' : '#10b981' }} />
+                      <b style={{ color: '#111827', fontSize: '0.875rem' }}>{h.zone}</b>
+                    </div>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 700, color: '#111827' }}>{h.demand_count} requests</span>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 600, color: '#4b5563' }}>{h.active_cars} cabs nearby</span>
+                  </td>
+                  <td>
+                    <span style={{
+                      fontWeight: 700,
+                      color: h.demand_ratio >= 1.5 ? '#c2410c' : '#059669',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      background: h.demand_ratio >= 1.5 ? '#fff7ed' : '#ecfdf5'
+                    }}>
+                      {h.demand_ratio}x
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 700, color: h.surge_multiplier > 1.0 ? '#c2410c' : '#111827' }}>
+                      {h.surge_multiplier > 1.0 ? `🔥 +${Math.round((h.surge_multiplier - 1.0) * 100)}% (${h.surge_multiplier}x)` : '1.0x (Standard)'}
+                    </span>
+                  </td>
+                  <td>
+                    <Badge variant={h.demand_ratio >= 1.5 ? 'red' : 'green'}>
+                      {h.demand_ratio >= 1.5 ? '🔥 High Surge Dispatch' : 'Normal Queue'}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Global Controls Grid */}
