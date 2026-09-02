@@ -21,6 +21,11 @@ export const ToastProvider = ({ children }) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const showSuccess = useCallback((msg, duration) => addToast(msg, 'success', duration), [addToast]);
+  const showError = useCallback((msg, duration) => addToast(msg, 'error', duration), [addToast]);
+  const showWarning = useCallback((msg, duration) => addToast(msg, 'warning', duration), [addToast]);
+  const showInfo = useCallback((msg, duration) => addToast(msg, 'info', duration), [addToast]);
+
   const toastThemes = {
     success: {
       bg: '#ffffff',
@@ -53,7 +58,7 @@ export const ToastProvider = ({ children }) => {
   };
 
   return (
-    <ToastContext.Provider value={{ addToast }}>
+    <ToastContext.Provider value={{ addToast, showSuccess, showError, showWarning, showInfo }}>
       {children}
       <div style={{
         position: 'fixed',
