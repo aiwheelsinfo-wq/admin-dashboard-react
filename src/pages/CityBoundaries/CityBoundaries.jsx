@@ -420,7 +420,7 @@ const CityBoundaries = () => {
             onClick={handleOpenAddModal}
             style={{
               padding: '10px 18px',
-              backgroundColor: 'var(--primary)',
+              backgroundColor: '#F59E0B',
               border: 'none',
               borderRadius: '10px',
               color: '#ffffff',
@@ -687,7 +687,7 @@ const CityBoundaries = () => {
           gap: '12px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Layers size={16} color="var(--primary)" />
+            <Layers size={16} color="#F59E0B" />
             <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
               Configured City Boundaries ({filteredCities.length})
             </h3>
@@ -1038,19 +1038,19 @@ const CityBoundaries = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
                   style={{
                     flex: 1,
-                    padding: '11px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                    backgroundColor: '#ffffff',
-                    color: 'var(--text-muted)',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    border: '1px solid #E2E8F0',
+                    backgroundColor: '#F8FAFC',
+                    color: '#64748B',
                     fontSize: '13px',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: 'pointer'
                   }}
                 >
@@ -1060,18 +1060,22 @@ const CityBoundaries = () => {
                   type="submit"
                   style={{
                     flex: 1,
-                    padding: '11px',
-                    borderRadius: '8px',
+                    padding: '12px',
+                    borderRadius: '10px',
                     border: 'none',
-                    backgroundColor: 'var(--primary)',
+                    backgroundColor: '#F59E0B',
                     color: '#ffffff',
                     fontSize: '13px',
-                    fontWeight: 700,
+                    fontWeight: 800,
                     cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.25)'
+                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
                   }}
                 >
-                  Save Boundary & Polygon
+                  <CheckCircle2 size={16} /> Save Boundary & Polygon
                 </button>
               </div>
             </form>
