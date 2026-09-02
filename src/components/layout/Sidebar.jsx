@@ -8,6 +8,7 @@ import {
   Users,
   Wallet,
   ShieldCheck,
+  MapPin,
   X
 } from 'lucide-react';
 
@@ -16,6 +17,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/oneway-fare', label: 'One-Way Dynamic Fare', icon: Zap, badge: 'Live' },
     { to: '/local-taxi-fare', label: 'Local Taxi Dynamic Fare', icon: Car, badge: 'City' },
+    { to: '/city-boundaries', label: 'City Boundaries & Geo-Fence', icon: MapPin, badge: 'Geo' },
     { to: '/special-days', label: 'Festival Surge Calendar', icon: Calendar, badge: 'Holiday' },
     { to: '/bookings', label: 'Live Bookings', icon: ShieldCheck },
   ];

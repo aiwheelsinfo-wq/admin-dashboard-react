@@ -9,6 +9,7 @@ import OneWayFare from './pages/OneWayFare/OneWayFare';
 import LocalTaxiFare from './pages/LocalTaxiFare/LocalTaxiFare';
 import SpecialDays from './pages/SpecialDays/SpecialDays';
 import Bookings from './pages/Bookings/Bookings';
+import CityBoundaries from './pages/CityBoundaries/CityBoundaries';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Route path="/oneway-fare" element={<OneWayFare />} />
             <Route path="/local-taxi-fare" element={<LocalTaxiFare />} />
             <Route path="/special-days" element={<SpecialDays />} />
+            <Route path="/city-boundaries" element={<CityBoundaries />} />
             <Route path="/bookings" element={<Bookings />} />
           </Routes>
         </DashboardLayout>
