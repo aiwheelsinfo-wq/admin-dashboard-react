@@ -39,25 +39,36 @@ const Sidebar = ({ isOpen, onClose }) => {
         />
       )}
 
-      <aside style={{
-        width: 'var(--sidebar-width)',
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)'
-      }}>
+      <aside
+        className={`sidebar-container ${isOpen ? 'sidebar-open' : ''}`}
+        style={{
+          width: 'var(--sidebar-width)',
+          backgroundColor: '#ffffff',
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          maxHeight: '100vh',
+          flexShrink: 0,
+          position: 'relative',
+          zIndex: 50,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.02)',
+          overflowY: 'auto',
+          overflowX: 'hidden'
+        }}
+      >
         {/* Brand Header */}
         <div style={{
           padding: '22px 20px',
           borderBottom: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          flexShrink: 0,
+          position: 'sticky',
+          top: 0,
+          backgroundColor: '#ffffff',
+          zIndex: 2
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
@@ -101,7 +112,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         </div>
 
         {/* Navigation Menu */}
-        <nav style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+        <nav style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -163,7 +174,11 @@ const Sidebar = ({ isOpen, onClose }) => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          flexShrink: 0,
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 2
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
