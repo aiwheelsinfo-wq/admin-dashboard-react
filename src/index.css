@@ -437,6 +437,12 @@ h1, h2, h3, h4, h5, h6 {
   background-color: #ffffff !important;
 }
 
+.sidebar-search-box:focus-within {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15) !important;
+  background-color: #ffffff !important;
+}
+
 .header-action-btn {
   transition: all 150ms ease;
 }

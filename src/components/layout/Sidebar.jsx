@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -9,13 +9,15 @@ import {
   ShieldCheck,
   MapPin,
   X,
-  LogOut
+  LogOut,
+  Search
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [menuSearch, setMenuSearch] = useState('');
 
   // Grouped Navigation Sections (strictly preserving all existing routes)
   const navSections = [
@@ -42,6 +44,22 @@ const Sidebar = ({ isOpen, onClose }) => {
       ]
     }
   ];
+
+  // Filter sections and items based on search input
+  const filteredSections = useMemo(() => {
+    if (!menuSearch.trim()) return navSections;
+    const q = menuSearch.toLowerCase().trim();
+    return navSections
+      .map(sec => ({
+        ...sec,
+        items: sec.items.filter(item =>
+          item.label.toLowerCase().includes(q) ||
+          (item.badge && item.badge.toLowerCase().includes(q)) ||
+          sec.title.toLowerCase().includes(q)
+        )
+      }))
+      .filter(sec => sec.items.length > 0);
+  }, [menuSearch]);
 
   // Refined enterprise badge styling
   const getBadgeStyle = (type) => {
@@ -132,7 +150,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           position: 'sticky',
           top: 0,
           backgroundColor: '#FFFFFF',
-          zIndex: 2
+          zIndex: 3
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{
@@ -197,77 +215,165 @@ const Sidebar = ({ isOpen, onClose }) => {
           )}
         </div>
 
+        {/* Sidebar Search Bar */}
+        <div style={{
+          padding: '14px 14px 8px',
+          position: 'sticky',
+          top: '87px',
+          backgroundColor: '#FFFFFF',
+          zIndex: 2,
+          borderBottom: '1px solid #F3F4F6'
+        }}>
+          <div
+            className="sidebar-search-box"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: '8px',
+              padding: '0 10px',
+              height: '36px',
+              transition: 'all 150ms ease'
+            }}
+          >
+            <Search style={{ width: '14px', height: '14px', color: '#94A3B8', marginRight: '8px', flexShrink: 0 }} />
+            <input
+              type="text"
+              value={menuSearch}
+              onChange={(e) => setMenuSearch(e.target.value)}
+              placeholder="Search sidebar menu..."
+              style={{
+                width: '100%',
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '0.8125rem',
+                fontWeight: 500,
+                color: '#111827',
+                fontFamily: 'var(--font-body)'
+              }}
+            />
+            {menuSearch && (
+              <button
+                type="button"
+                onClick={() => setMenuSearch('')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94A3B8',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px'
+                }}
+                title="Clear filter"
+                aria-label="Clear menu search"
+              >
+                <X style={{ width: '13px', height: '13px' }} />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Grouped Navigation Menu */}
         <nav style={{
-          padding: '14px 0',
+          padding: '12px 0',
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
           overflowY: 'auto',
           overflowX: 'hidden'
         }}>
-          {navSections.map((section, sIdx) => (
-            <div key={section.title} style={{ marginBottom: sIdx < navSections.length - 1 ? '16px' : '6px' }}>
-              {/* Section Header Label */}
-              <div style={{
-                fontSize: '0.656rem',
-                fontWeight: 700,
-                color: '#9CA3AF',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                padding: '4px 22px 6px',
-                margin: 0
-              }}>
-                {section.title}
-              </div>
-
-              {/* Section Nav Items */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      onClick={onClose}
-                      className={({ isActive }) => `sidebar-nav-item ${isActive ? 'active' : ''}`}
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <Icon
-                              className="sidebar-nav-icon"
-                              style={{
-                                width: '19px',
-                                height: '19px',
-                                color: isActive ? '#F59E0B' : '#6B7280',
-                                flexShrink: 0,
-                                transition: 'color 180ms ease'
-                              }}
-                            />
-                            <span style={{ fontSize: '0.90rem' }}>{item.label}</span>
-                          </div>
-
-                          {item.badge && (
-                            <span style={{
-                              fontSize: '0.6875rem',
-                              fontWeight: 600,
-                              padding: '2px 8px',
-                              borderRadius: '999px',
-                              lineHeight: 1.2,
-                              ...getBadgeStyle(item.badgeType)
-                            }}>
-                              {item.badge}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </NavLink>
-                  );
-                })}
-              </div>
+          {filteredSections.length === 0 ? (
+            <div style={{ padding: '30px 16px', textAlign: 'center', color: '#94A3B8', fontSize: '0.8125rem' }}>
+              <Search style={{ width: '22px', height: '22px', margin: '0 auto 8px auto', color: '#CBD5E1' }} />
+              <div style={{ fontWeight: 600, color: '#64748B' }}>No matching menus found</div>
+              <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>Try searching with a different term</div>
+              <button
+                type="button"
+                onClick={() => setMenuSearch('')}
+                style={{
+                  marginTop: '10px',
+                  background: '#FFF7ED',
+                  border: '1px solid #FED7AA',
+                  color: '#D97706',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Reset Search
+              </button>
             </div>
-          ))}
+          ) : (
+            filteredSections.map((section, sIdx) => (
+              <div key={section.title} style={{ marginBottom: sIdx < filteredSections.length - 1 ? '16px' : '6px' }}>
+                {/* Section Header Label */}
+                <div style={{
+                  fontSize: '0.656rem',
+                  fontWeight: 700,
+                  color: '#9CA3AF',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  padding: '4px 22px 6px',
+                  margin: 0
+                }}>
+                  {section.title}
+                </div>
+
+                {/* Section Nav Items */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={onClose}
+                        className={({ isActive }) => `sidebar-nav-item ${isActive ? 'active' : ''}`}
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <Icon
+                                className="sidebar-nav-icon"
+                                style={{
+                                  width: '19px',
+                                  height: '19px',
+                                  color: isActive ? '#F59E0B' : '#6B7280',
+                                  flexShrink: 0,
+                                  transition: 'color 180ms ease'
+                                }}
+                              />
+                              <span style={{ fontSize: '0.90rem' }}>{item.label}</span>
+                            </div>
+
+                            {item.badge && (
+                              <span style={{
+                                fontSize: '0.6875rem',
+                                fontWeight: 600,
+                                padding: '2px 8px',
+                                borderRadius: '999px',
+                                lineHeight: 1.2,
+                                ...getBadgeStyle(item.badgeType)
+                              }}>
+                                {item.badge}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
         </nav>
 
         {/* Bottom User Profile */}
