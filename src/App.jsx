@@ -1,9 +1,12 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/layout/DashboardLayout';
 import { ToastProvider } from './context/ToastContext';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Pages
+import Login from './pages/Login/Login';
 import Overview from './pages/Overview/Overview';
 import OneWayFare from './pages/OneWayFare/OneWayFare';
 import LocalTaxiFare from './pages/LocalTaxiFare/LocalTaxiFare';
@@ -14,18 +17,34 @@ import CityBoundaries from './pages/CityBoundaries/CityBoundaries';
 function App() {
   return (
     <ToastProvider>
-      <Router>
-        <DashboardLayout>
+      <AuthProvider>
+        <Router>
           <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/oneway-fare" element={<OneWayFare />} />
-            <Route path="/local-taxi-fare" element={<LocalTaxiFare />} />
-            <Route path="/special-days" element={<SpecialDays />} />
-            <Route path="/city-boundaries" element={<CityBoundaries />} />
-            <Route path="/bookings" element={<Bookings />} />
+            {/* Public Auth Route */}
+            <Route path="/login" element={<Login />} />
+
+            {/* Protected Admin Routes */}
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Routes>
+                      <Route path="/" element={<Overview />} />
+                      <Route path="/oneway-fare" element={<OneWayFare />} />
+                      <Route path="/local-taxi-fare" element={<LocalTaxiFare />} />
+                      <Route path="/special-days" element={<SpecialDays />} />
+                      <Route path="/city-boundaries" element={<CityBoundaries />} />
+                      <Route path="/bookings" element={<Bookings />} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
-        </DashboardLayout>
-      </Router>
+        </Router>
+      </AuthProvider>
     </ToastProvider>
   );
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -9,10 +9,14 @@ import {
   Wallet,
   ShieldCheck,
   MapPin,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
+  const { logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const navItems = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/oneway-fare', label: 'One-Way Dynamic Fare', icon: Zap, badge: 'Live' },
@@ -180,32 +184,153 @@ const Sidebar = ({ isOpen, onClose }) => {
           bottom: 0,
           zIndex: 2
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              backgroundColor: '#fff7ed',
-              border: '1px solid #fed7aa',
-              color: '#d97706',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '0.875rem'
-            }}>
-              A
-            </div>
-            <div>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#111827' }}>Ansil (SuperAdmin)</div>
-              <div style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                <span>Online (AWS Server)</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: '#fff7ed',
+                border: '1px solid #fed7aa',
+                color: '#d97706',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: '0.875rem'
+              }}>
+                A
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#111827' }}>SuperAdmin</div>
+                <div style={{ fontSize: '0.75rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                  <span>agnicarrental...</span>
+                </div>
               </div>
             </div>
+
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              title="Sign Out"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#ef4444',
+                cursor: 'pointer',
+                padding: '6px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.15s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <LogOut style={{ width: '18px', height: '18px' }} />
+            </button>
           </div>
         </div>
       </aside>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          zIndex: 99999
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            maxWidth: '380px',
+            width: '100%',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            gap: '16px',
+            animation: 'fadeIn 0.15s ease'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <LogOut style={{ width: '22px', height: '22px' }} />
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: '#0f172a', margin: '0 0 6px 0' }}>
+                Confirm Sign Out
+              </h3>
+              <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+                Are you sure you want to log out of the Rentox Admin Portal? You will need to enter your email and password to access the dashboard again.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="btn-secondary"
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.875rem'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  logout();
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '10px 16px',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 4px rgba(220, 38, 38, 0.25)',
+                  transition: 'background-color 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
