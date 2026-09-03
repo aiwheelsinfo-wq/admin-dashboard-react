@@ -48,8 +48,8 @@
   --purple-bg: #f5f3ff;
   --purple-text: #6d28d9;
 
-  --sidebar-width: 260px;
-  --topbar-height: 72px;
+  --sidebar-width: 256px;
+  --topbar-height: 64px;
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -391,7 +391,86 @@ h1, h2, h3, h4, h5, h6 {
   background-color: var(--success);
 }
 
-/* Mobile Responsiveness */
+/* Enterprise Navigation Styles */
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  margin: 3px 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-family: var(--font-body);
+  font-size: 0.90rem;
+  font-weight: 500;
+  color: #4b5563;
+  background-color: transparent;
+  border-left: 3px solid transparent;
+  transition: all 180ms ease;
+}
+
+.sidebar-nav-item:hover {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+.sidebar-nav-item:hover .sidebar-nav-icon {
+  color: #f59e0b !important;
+}
+
+.sidebar-nav-item.active {
+  background-color: #fff7ed;
+  border-left: 3px solid #f59e0b;
+  color: #111827;
+  font-weight: 600;
+}
+
+.sidebar-nav-item.active .sidebar-nav-icon {
+  color: #f59e0b !important;
+}
+
+/* Header Focus & Hover Styles */
+.header-search-box:focus-within {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+  background-color: #ffffff !important;
+}
+
+.header-action-btn {
+  transition: all 150ms ease;
+}
+
+.header-action-btn:hover {
+  background-color: #fff7ed !important;
+  border-color: #f59e0b !important;
+  color: #d97706 !important;
+}
+
+.header-action-btn:hover svg {
+  color: #d97706 !important;
+}
+
+/* Header Specific Responsive Rules */
+.header-search-box {
+  width: 400px;
+}
+
+@media (max-width: 1400px) {
+  .header-search-box {
+    width: 340px !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .header-search-box {
+    width: 260px !important;
+  }
+  .aws-ip-text {
+    display: none !important;
+  }
+}
+
 @media (max-width: 768px) {
   .page-body {
     padding: 16px;
@@ -409,5 +488,17 @@ h1, h2, h3, h4, h5, h6 {
   }
   .sidebar-container.sidebar-open {
     transform: translateX(0);
+  }
+  .header-search-container {
+    display: none !important;
+  }
+  .header-mobile-toggle {
+    display: flex !important;
+  }
+  .topbar-header {
+    padding: 0 16px !important;
+  }
+  .customer-site-btn span {
+    display: none !important;
   }
 }
