@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Zap,
+  Repeat,
   Calendar,
   Car,
   Users,
@@ -20,6 +21,7 @@ const Sidebar = ({ isOpen, onClose }) => {
   const navItems = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/oneway-fare', label: 'One-Way Dynamic Fare', icon: Zap, badge: 'Live' },
+    { to: '/roundtrip-fare', label: 'Round-Trip Fare', icon: Repeat, badge: 'Fleet' },
     { to: '/local-taxi-fare', label: 'Local Taxi Dynamic Fare', icon: Car, badge: 'City' },
     { to: '/city-boundaries', label: 'City Boundaries & Geo-Fence', icon: MapPin, badge: 'Geo' },
     { to: '/special-days', label: 'Festival Surge Calendar', icon: Calendar, badge: 'Holiday' },

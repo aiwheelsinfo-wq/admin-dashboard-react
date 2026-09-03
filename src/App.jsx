@@ -9,6 +9,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import Login from './pages/Login/Login';
 import Overview from './pages/Overview/Overview';
 import OneWayFare from './pages/OneWayFare/OneWayFare';
+import RoundTripFare from './pages/RoundTripFare/RoundTripFare';
 import LocalTaxiFare from './pages/LocalTaxiFare/LocalTaxiFare';
 import SpecialDays from './pages/SpecialDays/SpecialDays';
 import Bookings from './pages/Bookings/Bookings';
@@ -32,6 +33,7 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Overview />} />
                       <Route path="/oneway-fare" element={<OneWayFare />} />
+                      <Route path="/roundtrip-fare" element={<RoundTripFare />} />
                       <Route path="/local-taxi-fare" element={<LocalTaxiFare />} />
                       <Route path="/special-days" element={<SpecialDays />} />
                       <Route path="/city-boundaries" element={<CityBoundaries />} />
