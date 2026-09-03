@@ -6,7 +6,24 @@ import { useToast } from '../../context/ToastContext';
 const DashboardLayout = ({ children }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('rentox_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const { addToast } = useToast();
+
+  const handleToggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('rentox_sidebar_collapsed', String(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   const handleGlobalRefresh = () => {
     setIsRefreshing(true);
@@ -22,6 +39,8 @@ const DashboardLayout = ({ children }) => {
       <Sidebar
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={handleToggleCollapse}
       />
       <div className="main-content">
         <Topbar
