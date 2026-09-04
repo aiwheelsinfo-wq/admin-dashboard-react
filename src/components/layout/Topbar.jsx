@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, RefreshCw, ExternalLink, Menu, Bell } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 
@@ -248,8 +249,9 @@ const Topbar = ({ onRefresh, isRefreshing, onToggleSidebar }) => {
           />
         </button>
 
-        {/* 5. Admin Avatar Chip (46px × 46px, Radius: 12px, Font: 16px/700) */}
-        <div
+        {/* 5. Admin Avatar Chip (46px × 46px, Radius: 12px, Font: 16px/700) -> Links to Settings */}
+        <Link
+          to="/settings"
           style={{
             width: '46px',
             height: '46px',
@@ -263,12 +265,16 @@ const Topbar = ({ onRefresh, isRefreshing, onToggleSidebar }) => {
             fontWeight: 700,
             fontSize: '16px',
             userSelect: 'none',
-            flexShrink: 0
+            flexShrink: 0,
+            textDecoration: 'none',
+            transition: 'all 150ms ease',
+            cursor: 'pointer'
           }}
-          title="SuperAdmin (AWS Active)"
+          title="Account Settings & Security"
+          className="header-action-btn"
         >
           A
-        </div>
+        </Link>
       </div>
     </header>
   );

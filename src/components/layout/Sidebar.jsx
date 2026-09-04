@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -42,9 +43,10 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
       ]
     },
     {
-      title: 'MANAGEMENT',
+      title: 'MANAGEMENT & SECURITY',
       items: [
         { to: '/bookings', label: 'Live Bookings', icon: ShieldCheck },
+        { to: '/settings', label: 'Settings & Privacy', icon: Settings, badge: 'Security', badgeType: 'auth' },
       ]
     }
   ];
@@ -97,6 +99,12 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
           backgroundColor: '#FFF7ED',
           color: '#EA580C',
           border: '1px solid #FED7AA'
+        };
+      case 'auth':
+        return {
+          backgroundColor: '#FFFBEB',
+          color: '#B45309',
+          border: '1px solid #FDE68A'
         };
       default:
         return {

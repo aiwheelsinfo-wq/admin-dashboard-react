@@ -14,6 +14,7 @@ import LocalTaxiFare from './pages/LocalTaxiFare/LocalTaxiFare';
 import SpecialDays from './pages/SpecialDays/SpecialDays';
 import Bookings from './pages/Bookings/Bookings';
 import CityBoundaries from './pages/CityBoundaries/CityBoundaries';
+import SettingsPrivacy from './pages/Settings/SettingsPrivacy';
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
                       <Route path="/special-days" element={<SpecialDays />} />
                       <Route path="/city-boundaries" element={<CityBoundaries />} />
                       <Route path="/bookings" element={<Bookings />} />
+                      <Route path="/settings" element={<SettingsPrivacy />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </DashboardLayout>
