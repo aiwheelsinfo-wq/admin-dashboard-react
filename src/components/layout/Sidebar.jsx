@@ -16,7 +16,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  Clock
+  Clock,
+  Building2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -48,6 +49,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
       title: 'MANAGEMENT & SECURITY',
       items: [
         { to: '/bookings', label: 'Live Bookings', icon: ShieldCheck },
+        { to: '/vendors', label: 'Vendors & Fleet Partners', icon: Building2, badge: 'Fleet', badgeType: 'fleet' },
         { to: '/settings', label: 'Settings & Privacy', icon: Settings, badge: 'Security', badgeType: 'auth' },
       ]
     }

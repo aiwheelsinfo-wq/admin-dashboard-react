@@ -15,6 +15,7 @@ export const endpoints = {
   
   // Admin Management Endpoints
   bookingsManagement: `${ADMIN_BASE_URL}/bookings_management.php`,
+  vendorsManagement: `${ADMIN_BASE_URL}/vendors_management.php`,
   onewayFareManagement: `${ADMIN_BASE_URL}/oneway_fare_management.php`,
   roundtripFareManagement: `${ADMIN_BASE_URL}/roundtrip_fare_management.php`,
   localdutyFareManagement: `${ADMIN_BASE_URL}/localduty_fare_management.php`,
