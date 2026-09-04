@@ -15,7 +15,8 @@ import {
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
-  Settings
+  Settings,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,6 +33,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
         { to: '/', label: 'Overview', icon: LayoutDashboard },
         { to: '/oneway-fare', label: 'One-Way Dynamic Fare', icon: Zap, badge: 'Live', badgeType: 'live' },
         { to: '/roundtrip-fare', label: 'Round-Trip Fare', icon: Repeat, badge: 'Fleet', badgeType: 'fleet' },
+        { to: '/localduty-fare', label: 'Local Duty Fare & Allowance', icon: Clock, badge: 'Rental', badgeType: 'rental' },
         { to: '/local-taxi-fare', label: 'Local Taxi Dynamic Fare', icon: Car, badge: 'City', badgeType: 'city' },
       ]
     },
@@ -105,6 +107,12 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
           backgroundColor: '#FFFBEB',
           color: '#B45309',
           border: '1px solid #FDE68A'
+        };
+      case 'rental':
+        return {
+          backgroundColor: '#EFF6FF',
+          color: '#1D4ED8',
+          border: '1px solid #BFDBFE'
         };
       default:
         return {

@@ -16,6 +16,7 @@ export const endpoints = {
   // Admin Management Endpoints
   onewayFareManagement: `${ADMIN_BASE_URL}/oneway_fare_management.php`,
   roundtripFareManagement: `${ADMIN_BASE_URL}/roundtrip_fare_management.php`,
+  localdutyFareManagement: `${ADMIN_BASE_URL}/localduty_fare_management.php`,
   adminAccountSettings: `${ADMIN_BASE_URL}/admin_account_settings.php`,
   getCityBoundaries: `${API_BASE_URL}/get_city_boundaries.php`,
   getSettlements: `${API_BASE_URL}/get_settlements.php`,
