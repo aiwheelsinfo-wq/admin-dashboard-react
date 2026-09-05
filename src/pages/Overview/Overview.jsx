@@ -9,7 +9,8 @@ import {
   DollarSign,
   Activity,
   ArrowUpRight,
-  Clock
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import axios from 'axios';
@@ -22,24 +23,40 @@ const Overview = () => {
     demandRatio: 1.67,
     demandShiftPct: 66.7,
     dynamicPricingActive: true,
-    totalBookingsToday: 10,
+    totalBookingsToday: 12,
     approvedDrivers: 1020,
-    todayRevenueEstimate: 29010,
+    todayRevenueEstimate: 3500,
   });
 
-  const [recentBookings, setRecentBookings] = useState([
-    { id: 347, route: 'Cheeyambam → Bangalore', car: 'Sedan', fare: '₹4,342.50', status: 'Pending', time: 'Just now' },
-    { id: 346, route: 'Mumbai → Pune (Expressway)', car: 'Sedan', fare: '₹2,901.00', status: 'Confirmed', time: '18 mins ago' },
-    { id: 345, route: 'Pune → Shirdi', car: 'Ertiga', fare: '₹5,150.00', status: 'In-Transit', time: '45 mins ago' },
-    { id: 344, route: 'Mumbai → Lonavala', car: 'Innova', fare: '₹3,850.00', status: 'Completed', time: '2 hours ago' },
-  ]);
+  const [recentBookings, setRecentBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
+
+  const formatTimeAgo = (dateStr) => {
+    if (!dateStr) return 'Recently';
+    try {
+      const parsed = new Date(dateStr.replace(' ', 'T'));
+      if (isNaN(parsed.getTime())) return dateStr;
+      const diffSec = Math.floor((new Date() - parsed) / 1000);
+      if (diffSec < 60) return 'Just now';
+      if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+      return dateStr.split(' ')[0];
+    } catch (_) {
+      return dateStr;
+    }
+  };
 
   useEffect(() => {
     const fetchLiveStats = async () => {
       try {
-        const res = await axios.get(`${endpoints.selectCarCostList}?tripType=One-way&distance=148`);
-        if (res.data && res.data[0] && res.data[0].dynamic_pricing) {
-          const dp = res.data[0].dynamic_pricing;
+        const [pricingRes, bookingsRes, statsRes] = await Promise.allSettled([
+          axios.get(`${endpoints.selectCarCostList}?tripType=One-way&distance=148`),
+          axios.get(`${endpoints.bookingsManagement}?action=get_all_bookings&limit=6`),
+          axios.get(`${endpoints.bookingsManagement}?action=get_booking_stats`)
+        ]);
+
+        if (pricingRes.status === 'fulfilled' && pricingRes.value.data?.[0]?.dynamic_pricing) {
+          const dp = pricingRes.value.data[0].dynamic_pricing;
           setMetrics(prev => ({
             ...prev,
             todayDemand: dp.today_demand || prev.todayDemand,
@@ -49,8 +66,36 @@ const Overview = () => {
             dynamicPricingActive: dp.is_active ?? true
           }));
         }
+
+        if (statsRes.status === 'fulfilled' && statsRes.value.data?.status === 'success') {
+          const st = statsRes.value.data.stats;
+          setMetrics(prev => ({
+            ...prev,
+            totalBookingsToday: st.total_bookings ?? prev.totalBookingsToday,
+            todayRevenueEstimate: st.total_revenue ?? prev.todayRevenueEstimate,
+          }));
+        }
+
+        if (bookingsRes.status === 'fulfilled' && bookingsRes.value.data?.status === 'success') {
+          const list = bookingsRes.value.data.bookings || [];
+          const mapped = list.map(b => {
+            const fromShort = (b.from_address || '').split(',')[0].trim() || 'Pickup';
+            const toShort = (b.to_address || '').split(',')[0].trim() || 'Local Drop';
+            return {
+              id: b.id,
+              route: `${fromShort} → ${toShort}`,
+              car: `${b.car_type || 'Car'} • ${b.trip_type || 'Trip'}`,
+              fare: `₹${parseFloat(b.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              status: b.booking_status || 'Pending',
+              time: formatTimeAgo(b.booked_at || b.date)
+            };
+          });
+          setRecentBookings(mapped);
+        }
       } catch (err) {
         console.warn("Using cached live telemetry:", err);
+      } finally {
+        setLoadingBookings(false);
       }
     };
     fetchLiveStats();
@@ -195,35 +240,52 @@ const Overview = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {recentBookings.map((b) => (
-              <div
-                key={b.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  background: '#f9fafb',
-                  border: '1px solid #f3f4f6',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b' }}>#{b.id}</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>{b.route}</span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{b.car} • {b.time}</span>
-                </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#111827' }}>{b.fare}</div>
-                  <Badge variant={b.status === 'Confirmed' ? 'green' : b.status === 'Pending' ? 'amber' : 'blue'}>
-                    {b.status}
-                  </Badge>
-                </div>
+            {loadingBookings ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+                <RefreshCw style={{ width: '18px', height: '18px', display: 'inline', animation: 'spin 1s linear infinite', marginRight: '8px' }} />
+                Loading live bookings...
               </div>
-            ))}
+            ) : recentBookings.length === 0 ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '0.875rem' }}>
+                No recent bookings recorded yet
+              </div>
+            ) : (
+              recentBookings.map((b) => (
+                <NavLink
+                  to="/bookings"
+                  key={b.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    background: '#f9fafb',
+                    border: '1px solid #f3f4f6',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#e5e7eb')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = '#f3f4f6')}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f59e0b' }}>#{b.id}</span>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>{b.route}</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{b.car} • {b.time}</span>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#111827' }}>{b.fare}</div>
+                    <Badge variant={b.status === 'Confirmed' ? 'green' : b.status === 'Pending' ? 'amber' : 'blue'}>
+                      {b.status}
+                    </Badge>
+                  </div>
+                </NavLink>
+              ))
+            )}
           </div>
         </div>
       </div>
