@@ -28,8 +28,14 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  TrendingUp,
+  ArrowRightLeft,
+  Percent,
+  Briefcase,
+  BarChart3
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -45,7 +51,15 @@ const Bookings = () => {
     completed_count: 0,
     active_count: 0,
     cancelled_count: 0,
-    total_revenue: 0
+    total_revenue: 0,
+    total_company_earnings: 0,
+    total_vendor_payout: 0,
+    oneway_count: 0,
+    oneway_total_revenue: 0,
+    oneway_company_earnings: 0,
+    roundtrip_count: 0,
+    roundtrip_total_revenue: 0,
+    roundtrip_company_earnings: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -123,6 +137,52 @@ const Bookings = () => {
       return matchesStatus && matchesTripType && matchesSearch;
     });
   }, [bookings, filterStatus, filterTripType, searchTerm]);
+
+  // Dynamic calculations on currently filtered bookings
+  const filteredMetrics = useMemo(() => {
+    let rev = 0;
+    let companyTotal = 0;
+    let vendorTotal = 0;
+    let onewayEarnings = 0;
+    let onewayCount = 0;
+    let onewayRevenue = 0;
+    let roundtripEarnings = 0;
+    let roundtripCount = 0;
+    let roundtripRevenue = 0;
+
+    filteredBookings.forEach((b) => {
+      const tot = Number(b.total_amount || b.booking_amount || 0);
+      const agni = Number(b.agni_amount || 0);
+      const vend = Number(b.vendor_amount || 0);
+      const trip = (b.trip_type || '').toLowerCase();
+
+      rev += tot;
+      companyTotal += agni;
+      vendorTotal += vend;
+
+      if (trip.includes('one')) {
+        onewayEarnings += agni;
+        onewayCount += 1;
+        onewayRevenue += tot;
+      } else if (trip.includes('round')) {
+        roundtripEarnings += agni;
+        roundtripCount += 1;
+        roundtripRevenue += tot;
+      }
+    });
+
+    return {
+      revenue: rev,
+      companyTotal,
+      vendorTotal,
+      onewayEarnings,
+      onewayCount,
+      onewayRevenue,
+      roundtripEarnings,
+      roundtripCount,
+      roundtripRevenue
+    };
+  }, [filteredBookings]);
 
   // Reset page to 1 whenever filters, search, or pageSize change
   useEffect(() => {
@@ -271,6 +331,8 @@ const Bookings = () => {
         'Pickup Time': b.pickup_time || 'N/A',
         'Estimated KM': b.distance_km || b.kms || '—',
         'Total Amount (INR)': Number(b.total_amount || b.booking_amount || 0),
+        'Company Profit / Share (INR)': Number(b.agni_amount || 0),
+        'Driver Payout (INR)': Number(b.vendor_amount || 0),
         'Advance Paid (INR)': Number(b.advance_amount || 0),
         'Balance Due (INR)': Number(b.balance_amount || 0),
         'Driver Name': b.driver_name || 'Not Assigned',
@@ -370,8 +432,11 @@ const Bookings = () => {
       doc.setTextColor(220, 38, 38);
       doc.text(`Cancelled: ${filteredBookings.filter(b => (b.booking_status||'').toLowerCase() === 'cancelled').length}`, 440, 89);
       const totalRev = filteredBookings.reduce((sum, b) => sum + Number(b.total_amount || b.booking_amount || 0), 0);
+      const totalCompanyProf = filteredBookings.reduce((sum, b) => sum + Number(b.agni_amount || 0), 0);
       doc.setTextColor(15, 23, 42);
-      doc.text(`Revenue: INR ${totalRev.toLocaleString('en-IN')}`, 590, 89);
+      doc.text(`Gross Rev: INR ${totalRev.toLocaleString('en-IN')}`, 560, 89);
+      doc.setTextColor(5, 150, 105);
+      doc.text(`Co. Profit: INR ${totalCompanyProf.toLocaleString('en-IN')}`, 700, 89);
 
       // Table Rows
       const tableRows = filteredBookings.map((b) => [
@@ -382,13 +447,13 @@ const Bookings = () => {
         b.car_type || 'Standard',
         `${b.from_address ? b.from_address.slice(0, 30) : '—'}\n→ ${b.to_address ? b.to_address.slice(0, 30) : '—'}`,
         `${b.pickup_date || ''} ${b.pickup_time || ''}`.trim() || '—',
-        `₹${Number(b.total_amount || b.booking_amount || 0).toLocaleString('en-IN')}`,
+        `₹${Number(b.total_amount || b.booking_amount || 0).toLocaleString('en-IN')}\n(Co: ₹${Number(b.agni_amount || 0).toLocaleString('en-IN')})`,
         (b.booking_status || 'Pending').toUpperCase(),
         b.driver_name || 'Unassigned'
       ]);
 
       autoTable(doc, {
-        head: [['ID', 'Invoice', 'Customer', 'Type', 'Vehicle', 'Route (Pickup → Drop)', 'Schedule', 'Fare', 'Status', 'Driver']],
+        head: [['ID', 'Invoice', 'Customer', 'Type', 'Vehicle', 'Route (Pickup → Drop)', 'Schedule', 'Fare & Profit', 'Status', 'Driver']],
         body: tableRows,
         startY: 110,
         margin: { left: 30, right: 30 },
@@ -598,6 +663,30 @@ const Bookings = () => {
             <span>Sync Live</span>
           </button>
 
+          {/* Sales & Revenue Analytics Shortcut */}
+          <NavLink
+            to="/sales-analytics"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              backgroundColor: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              borderRadius: '10px',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              color: '#1D4ED8',
+              textDecoration: 'none',
+              boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Open Sales & Revenue Graphs Analytics"
+          >
+            <BarChart3 style={{ width: '16px', height: '16px', color: '#2563EB' }} />
+            <span>Sales Graphs</span>
+          </NavLink>
+
           {/* Export to Excel (.xlsx) */}
           <button
             onClick={handleExportExcel}
@@ -678,79 +767,117 @@ const Bookings = () => {
       {/* 2. Top Summary Metric Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gap: '14px',
         marginBottom: '24px'
       }}>
+        {/* Total Bookings */}
         <div style={{
           backgroundColor: '#FFFFFF',
           borderRadius: '14px',
           border: '1px solid #E2E8F0',
-          padding: '18px 20px',
+          padding: '16px 18px',
           boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
         }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Total Bookings
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+              Total Bookings
+            </span>
+            <Car style={{ width: '16px', height: '16px', color: '#64748B' }} />
           </div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A' }}>
             {stats.total_bookings ?? bookings.length}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '2px' }}>
-            All-time registered rides
+          <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '3px' }}>
+            {stats.active_count ?? 0} active • {stats.completed_count ?? 0} closed
           </div>
         </div>
 
+        {/* Total Gross Revenue */}
         <div style={{
           backgroundColor: '#FFFFFF',
           borderRadius: '14px',
           border: '1px solid #E2E8F0',
-          padding: '18px 20px',
+          padding: '16px 18px',
           boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
         }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Completed Trips
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669' }}>
-            {stats.completed_count ?? 0}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '2px' }}>
-            Invoiced & Closed
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '14px',
-          border: '1px solid #E2E8F0',
-          padding: '18px 20px',
-          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Pending / Active
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#D97706' }}>
-            {stats.active_count ?? 0}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#D97706', marginTop: '2px' }}>
-            Requiring action
-          </div>
-        </div>
-
-        <div style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '14px',
-          border: '1px solid #E2E8F0',
-          padding: '18px 20px',
-          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Total Booking Revenue
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+              Gross Customer Revenue
+            </span>
+            <DollarSign style={{ width: '16px', height: '16px', color: '#3B82F6' }} />
           </div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A' }}>
-            ₹{(stats.total_revenue || 0).toLocaleString()}
+            ₹{Number(stats.total_revenue || filteredMetrics.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '2px' }}>
-            Gross cumulative fares
+          <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '3px' }}>
+            Cumulative rider fares
+          </div>
+        </div>
+
+        {/* Company Earnings: One-Way */}
+        <div style={{
+          backgroundColor: '#F0FDF4',
+          borderRadius: '14px',
+          border: '1.5px solid #BBF7D0',
+          padding: '16px 18px',
+          boxShadow: '0 1px 3px rgba(5, 150, 105, 0.06)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#15803D', textTransform: 'uppercase' }}>
+              One-Way Company Profit
+            </span>
+            <Navigation style={{ width: '16px', height: '16px', color: '#059669' }} />
+          </div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#047857' }}>
+            ₹{Number(stats.oneway_company_earnings || filteredMetrics.onewayEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#166534', marginTop: '3px', fontWeight: 600 }}>
+            {stats.oneway_count || filteredMetrics.onewayCount} One-Way rides • Platform share
+          </div>
+        </div>
+
+        {/* Company Earnings: Round-Trip */}
+        <div style={{
+          backgroundColor: '#EFF6FF',
+          borderRadius: '14px',
+          border: '1.5px solid #BFDBFE',
+          padding: '16px 18px',
+          boxShadow: '0 1px 3px rgba(37, 99, 235, 0.06)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#1D4ED8', textTransform: 'uppercase' }}>
+              Round-Trip Company Profit
+            </span>
+            <ArrowRightLeft style={{ width: '16px', height: '16px', color: '#2563EB' }} />
+          </div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#1D4ED8' }}>
+            ₹{Number(stats.roundtrip_company_earnings || filteredMetrics.roundtripEarnings || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#1E40AF', marginTop: '3px', fontWeight: 600 }}>
+            {stats.roundtrip_count || filteredMetrics.roundtripCount} Round trips • Platform share
+          </div>
+        </div>
+
+        {/* Total Platform Profit */}
+        <div style={{
+          backgroundColor: '#FAF5FF',
+          borderRadius: '14px',
+          border: '1.5px solid #E9D5FF',
+          padding: '16px 18px',
+          boxShadow: '0 1px 3px rgba(124, 58, 237, 0.06)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#7E22CE', textTransform: 'uppercase' }}>
+              Total Company Profit
+            </span>
+            <TrendingUp style={{ width: '16px', height: '16px', color: '#7C3AED' }} />
+          </div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#6B21A8' }}>
+            ₹{Number(stats.total_company_earnings || filteredMetrics.companyTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#7E22CE', marginTop: '3px', fontWeight: 600 }}>
+            Net Rentox earnings margin
           </div>
         </div>
       </div>
@@ -882,7 +1009,7 @@ const Bookings = () => {
                 <th style={{ padding: '12px 14px' }}>Trip & Vehicle</th>
                 <th style={{ padding: '12px 14px' }}>Route</th>
                 <th style={{ padding: '12px 14px' }}>Schedule</th>
-                <th style={{ padding: '12px 14px' }}>Total Amount</th>
+                <th style={{ padding: '12px 14px' }}>Fare & Company Profit</th>
                 <th style={{ padding: '12px 14px' }}>Status</th>
                 <th style={{ padding: '12px 14px', textAlign: 'right' }}>Actions</th>
               </tr>
@@ -1027,14 +1154,35 @@ const Bookings = () => {
                         </div>
                       </td>
 
-                      {/* Total Amount */}
+                      {/* Total Amount & Company Share */}
                       <td style={{ padding: '14px' }}>
                         <div style={{ fontWeight: 800, fontSize: '0.9375rem', color: '#0F172A' }}>
-                          ₹{b.total_amount ? b.total_amount.toLocaleString() : '0'}
+                          ₹{Number(b.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: '#ECFDF5',
+                          color: '#059669',
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          padding: '2px 7px',
+                          borderRadius: '5px',
+                          marginTop: '3px',
+                          border: '1px solid #A7F3D0'
+                        }}>
+                          <span>Company:</span>
+                          <span>₹{Number(b.agni_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                        {Number(b.vendor_amount) > 0 && (
+                          <div style={{ fontSize: '0.6875rem', color: '#64748B', marginTop: '2px', fontWeight: 500 }}>
+                            Driver: ₹{Number(b.vendor_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        )}
                         {b.paid_amount > 0 && (
-                          <div style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600 }}>
-                            Paid: ₹{b.paid_amount}
+                          <div style={{ fontSize: '0.6875rem', color: '#2563EB', fontWeight: 600, marginTop: '2px' }}>
+                            Paid: ₹{Number(b.paid_amount).toLocaleString('en-IN')}
                           </div>
                         )}
                       </td>
@@ -1482,6 +1630,15 @@ const Bookings = () => {
                       <span style={{ fontWeight: 700 }}>₹{inspectBooking.agent_commission}</span>
                     </div>
                   )}
+                  {/* Platform & Driver Breakdown */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#047857', backgroundColor: '#ECFDF5', padding: '6px 8px', borderRadius: '6px', border: '1px solid #A7F3D0' }}>
+                    <span style={{ fontWeight: 700 }}>Company Earnings:</span>
+                    <span style={{ fontWeight: 800 }}>₹{Number(inspectBooking.agni_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#334155', backgroundColor: '#F1F5F9', padding: '6px 8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                    <span style={{ fontWeight: 700 }}>Driver Payout:</span>
+                    <span style={{ fontWeight: 800 }}>₹{Number(inspectBooking.vendor_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
 
                 <div style={{
@@ -1493,7 +1650,7 @@ const Bookings = () => {
                   borderTop: '1px solid #E2E8F0'
                 }}>
                   <span style={{ fontWeight: 800, fontSize: '0.9375rem', color: '#0F172A' }}>Total Customer Fare:</span>
-                  <span style={{ fontWeight: 900, fontSize: '1.25rem', color: '#0F172A' }}>₹{inspectBooking.total_amount}</span>
+                  <span style={{ fontWeight: 900, fontSize: '1.25rem', color: '#0F172A' }}>₹{Number(inspectBooking.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>

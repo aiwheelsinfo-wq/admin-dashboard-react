@@ -22,6 +22,7 @@ export const endpoints = {
   adminAccountSettings: `${ADMIN_BASE_URL}/admin_account_settings.php`,
   getCityBoundaries: `${API_BASE_URL}/get_city_boundaries.php`,
   getSettlements: `${API_BASE_URL}/get_settlements.php`,
+  driverAlertSettings: `${API_BASE_URL}/driver_alert_settings.php`,
 };
 
 // Reusable Axios instance with default headers

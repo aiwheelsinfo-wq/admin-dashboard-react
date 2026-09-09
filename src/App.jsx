@@ -13,10 +13,12 @@ import RoundTripFare from './pages/RoundTripFare/RoundTripFare';
 import LocalTaxiFare from './pages/LocalTaxiFare/LocalTaxiFare';
 import SpecialDays from './pages/SpecialDays/SpecialDays';
 import Bookings from './pages/Bookings/Bookings';
+import SalesAnalytics from './pages/SalesAnalytics/SalesAnalytics';
 import CityBoundaries from './pages/CityBoundaries/CityBoundaries';
 import SettingsPrivacy from './pages/Settings/SettingsPrivacy';
 import LocalDutyFare from './pages/LocalDutyFare/LocalDutyFare';
 import Vendors from './pages/Vendors/Vendors';
+import DriverAlertSettings from './pages/DriverAlertSettings/DriverAlertSettings';
 
 function App() {
   return (
@@ -42,7 +44,9 @@ function App() {
                       <Route path="/special-days" element={<SpecialDays />} />
                       <Route path="/city-boundaries" element={<CityBoundaries />} />
                       <Route path="/bookings" element={<Bookings />} />
+                      <Route path="/sales-analytics" element={<SalesAnalytics />} />
                       <Route path="/vendors" element={<Vendors />} />
+                      <Route path="/driver-alerts" element={<DriverAlertSettings />} />
                       <Route path="/settings" element={<SettingsPrivacy />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>

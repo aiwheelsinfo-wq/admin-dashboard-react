@@ -176,7 +176,7 @@ const OneWayFare = () => {
       formData.append('action', 'update_global_settings');
       formData.append('api', '1');
       formData.append('row_version', target.row_version || 1);
-      formData.append('master_engine_active', target.master_engine_active ? '1' : '0');
+      formData.append('master_engine_active', '1');
       formData.append('driver_allowance_active', target.driver_allowance_active ? '1' : '0');
       formData.append('discount_active', target.discount_active ? '1' : '0');
       formData.append('discount_type', target.discount_type);
@@ -412,11 +412,11 @@ const OneWayFare = () => {
                 fontWeight: 800,
                 padding: '4px 10px',
                 borderRadius: '9999px',
-                backgroundColor: globalSettings.master_engine_active ? '#10b981' : '#475569',
+                backgroundColor: '#10b981',
                 color: '#ffffff',
                 textTransform: 'uppercase'
               }}>
-                {globalSettings.master_engine_active ? 'ENGINE ACTIVE' : 'DISABLED (FALLBACK)'}
+                ENGINE ACTIVE
               </span>
               <span style={{
                 fontSize: '0.7rem',
@@ -774,32 +774,8 @@ const OneWayFare = () => {
           </div>
         </div>
 
-        {/* 5 Core Feature Cards Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px' }}>
-          {/* 1. Master Engine */}
-          <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#0f172a' }}>Master Engine</span>
-                <ToggleSwitch
-                  checked={Boolean(globalSettings.master_engine_active)}
-                  onChange={(val) => handleToggle('master_engine_active', val, 'Master Engine')}
-                />
-              </div>
-              <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>When OFF, quotes automatically fallback to legacy table.</p>
-            </div>
-            <span style={{
-              fontSize: '0.6875rem',
-              fontWeight: 800,
-              textAlign: 'center',
-              padding: '4px',
-              borderRadius: '6px',
-              backgroundColor: globalSettings.master_engine_active ? '#ecfdf5' : '#f1f5f9',
-              color: globalSettings.master_engine_active ? '#065f46' : '#64748b'
-            }}>
-              {globalSettings.master_engine_active ? 'Engine Active' : 'Fallback Mode'}
-            </span>
-          </div>
+        {/* Core Feature Cards Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
 
           {/* 2. Driver Allowance */}
           <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>

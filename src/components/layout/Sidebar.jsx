@@ -17,7 +17,9 @@ import {
   PanelLeftOpen,
   Settings,
   Clock,
-  Building2
+  Building2,
+  Bell,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,6 +34,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
       title: 'OPERATIONS',
       items: [
         { to: '/', label: 'Overview', icon: LayoutDashboard },
+        { to: '/driver-alerts', label: 'Driver Alert System', icon: Bell, badge: 'Alerts', badgeType: 'fleet' },
         { to: '/oneway-fare', label: 'One-Way Dynamic Fare', icon: Zap, badge: 'Live', badgeType: 'live' },
         { to: '/roundtrip-fare', label: 'Round-Trip Fare', icon: Repeat, badge: 'Fleet', badgeType: 'fleet' },
         { to: '/localduty-fare', label: 'Local Duty Fare & Allowance', icon: Clock, badge: 'Rental', badgeType: 'rental' },
@@ -49,6 +52,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
       title: 'MANAGEMENT & SECURITY',
       items: [
         { to: '/bookings', label: 'Live Bookings', icon: ShieldCheck },
+        { to: '/sales-analytics', label: 'Sales & Revenue Analytics', icon: BarChart3, badge: 'Charts', badgeType: 'live' },
         { to: '/vendors', label: 'Vendors & Fleet Partners', icon: Building2, badge: 'Fleet', badgeType: 'fleet' },
         { to: '/settings', label: 'Settings & Privacy', icon: Settings, badge: 'Security', badgeType: 'auth' },
       ]
