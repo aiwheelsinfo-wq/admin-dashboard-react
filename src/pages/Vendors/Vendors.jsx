@@ -32,7 +32,10 @@ import {
   Award,
   Sparkles,
   Info,
-  RotateCcw
+  RotateCcw,
+  Ban,
+  Unlock,
+  ShieldAlert
 } from 'lucide-react';
 import { endpoints } from '../../config/api';
 import { useToast } from '../../context/ToastContext';
@@ -56,13 +59,13 @@ const Vendors = () => {
 
   // Search & Detailed Dropdown Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'active' | 'notified' | 'pending' | 'suspended' | 'inactive'
+  const [statusFilter, setStatusFilter] = useState('All'); // 'All' | 'active' | 'blocked' | 'notified' | 'pending' | 'suspended' | 'inactive'
   const [vehiclesFilter, setVehiclesFilter] = useState('All'); // 'All' | 'has_vehicles' | 'no_vehicles'
   const [driversFilter, setDriversFilter] = useState('All'); // 'All' | 'has_drivers' | 'no_drivers'
   const [cityFilter, setCityFilter] = useState('All');
 
   // Compact Quick Filter Chips
-  const [quickFilter, setQuickFilter] = useState('All'); // 'All' | 'Active' | 'HasVehicles' | 'HasDrivers' | 'Both' | 'Empty'
+  const [quickFilter, setQuickFilter] = useState('All'); // 'All' | 'Active' | 'Blocked' | 'HasVehicles' | 'HasDrivers' | 'Both' | 'Empty'
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -76,6 +79,17 @@ const Vendors = () => {
   const [inspectVendorPhone, setInspectVendorPhone] = useState(null);
   const [vendorDetails, setVendorDetails] = useState(null);
   const [inspectLoading, setInspectLoading] = useState(false);
+
+  // Block / Unblock Modal States
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [selectedVendorForBlock, setSelectedVendorForBlock] = useState(null);
+  const [blockReasonCategory, setBlockReasonCategory] = useState('Payment Default / Overdue Commission');
+  const [customBlockNote, setCustomBlockNote] = useState('');
+  const [isBlockingLoading, setIsBlockingLoading] = useState(false);
+
+  const [showUnblockModal, setShowUnblockModal] = useState(false);
+  const [selectedVendorForUnblock, setSelectedVendorForUnblock] = useState(null);
+  const [isUnblockingLoading, setIsUnblockingLoading] = useState(false);
 
   // Add Vendor Modal state
   const [showAddVendorModal, setShowAddVendorModal] = useState(false);
@@ -140,6 +154,7 @@ const Vendors = () => {
   const kpiMetrics = useMemo(() => {
     const total = stats.total_vendors || vendors.length;
     let active = 0;
+    let blocked = 0;
     let notified = 0;
     let pending = 0;
     let hasVehicles = 0;
@@ -150,7 +165,9 @@ const Vendors = () => {
 
     vendors.forEach((v) => {
       const st = (v.status || '').toLowerCase().trim();
-      if (['active', 'verified', 'filled'].includes(st)) {
+      if (st === 'blocked') {
+        blocked++;
+      } else if (['active', 'verified', 'filled'].includes(st)) {
         active++;
       } else if (st === 'notified') {
         notified++;
@@ -168,6 +185,7 @@ const Vendors = () => {
     return {
       total,
       active,
+      blocked,
       notified,
       pending,
       hasVehicles,
@@ -207,6 +225,131 @@ const Vendors = () => {
   const handleCloseInspect = () => {
     setInspectVendorPhone(null);
     setVendorDetails(null);
+  };
+
+  // Handle Vendor Block API action
+  const handleConfirmBlock = async () => {
+    if (!selectedVendorForBlock) return;
+
+    const fullReason = blockReasonCategory === 'Other (Custom Reason)'
+      ? (customBlockNote.trim() || 'Administrative restriction')
+      : (customBlockNote.trim() ? `${blockReasonCategory} - ${customBlockNote.trim()}` : blockReasonCategory);
+
+    setIsBlockingLoading(true);
+    try {
+      const res = await axios.post(
+        endpoints.vendorsManagement,
+        {
+          action: 'toggle_vendor_block',
+          vendor_phone: selectedVendorForBlock.vendor_phone,
+          status: 'blocked',
+          block_reason: fullReason
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      if (res.data && res.data.status === 'success') {
+        const nowIso = new Date().toISOString();
+        addToast(`Vendor ${selectedVendorForBlock.vendor_name || selectedVendorForBlock.vendor_phone} blocked. Attached fleet drivers set offline.`, 'success');
+        
+        // Optimistically update vendor list in state
+        setVendors((prev) =>
+          prev.map((v) =>
+            v.vendor_phone === selectedVendorForBlock.vendor_phone
+              ? { ...v, status: 'blocked', block_reason: fullReason, blocked_at: nowIso }
+              : v
+          )
+        );
+
+        // If currently inspecting this vendor in drawer, update drawer state
+        if (inspectVendorPhone === selectedVendorForBlock.vendor_phone) {
+          setVendorDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  vendor: {
+                    ...prev.vendor,
+                    status: 'blocked',
+                    block_reason: fullReason,
+                    blocked_at: nowIso
+                  },
+                  drivers: prev.drivers?.map((d) => ({ ...d, is_online: 0 })) || []
+                }
+              : null
+          );
+        }
+
+        setShowBlockModal(false);
+        setSelectedVendorForBlock(null);
+        setCustomBlockNote('');
+      } else {
+        addToast(res.data?.message || 'Failed to block vendor.', 'error');
+      }
+    } catch (err) {
+      console.error('Error blocking vendor:', err);
+      addToast('Network or server error blocking vendor.', 'error');
+    } finally {
+      setIsBlockingLoading(false);
+    }
+  };
+
+  // Handle Vendor Unblock API action
+  const handleConfirmUnblock = async () => {
+    if (!selectedVendorForUnblock) return;
+
+    setIsUnblockingLoading(true);
+    try {
+      const res = await axios.post(
+        endpoints.vendorsManagement,
+        {
+          action: 'toggle_vendor_block',
+          vendor_phone: selectedVendorForUnblock.vendor_phone,
+          status: 'active',
+          block_reason: ''
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      if (res.data && res.data.status === 'success') {
+        addToast(`Vendor ${selectedVendorForUnblock.vendor_name || selectedVendorForUnblock.vendor_phone} unblocked and restored to Active status.`, 'success');
+
+        // Optimistically update vendor list in state
+        setVendors((prev) =>
+          prev.map((v) =>
+            v.vendor_phone === selectedVendorForUnblock.vendor_phone
+              ? { ...v, status: 'active', block_reason: '', blocked_at: null }
+              : v
+          )
+        );
+
+        // If currently inspecting this vendor in drawer, update drawer state
+        if (inspectVendorPhone === selectedVendorForUnblock.vendor_phone) {
+          setVendorDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  vendor: {
+                    ...prev.vendor,
+                    status: 'active',
+                    block_reason: '',
+                    blocked_at: null
+                  }
+                }
+              : null
+          );
+        }
+
+        setShowUnblockModal(false);
+        setSelectedVendorForUnblock(null);
+      } else {
+        addToast(res.data?.message || 'Failed to unblock vendor.', 'error');
+      }
+    } catch (err) {
+      console.error('Error unblocking vendor:', err);
+      addToast('Network or server error unblocking vendor.', 'error');
+    } finally {
+      setIsUnblockingLoading(false);
+    }
   };
 
   // Copy phone helper
@@ -324,6 +467,8 @@ const Vendors = () => {
       let matchesStatus = true;
       if (statusFilter === 'active') {
         matchesStatus = ['active', 'verified', 'filled'].includes(status);
+      } else if (statusFilter === 'blocked') {
+        matchesStatus = status === 'blocked';
       } else if (statusFilter === 'notified') {
         matchesStatus = status === 'notified';
       } else if (statusFilter === 'pending') {
@@ -360,6 +505,8 @@ const Vendors = () => {
       let matchesQuick = true;
       if (quickFilter === 'Active') {
         matchesQuick = ['active', 'verified', 'filled'].includes(status);
+      } else if (quickFilter === 'Blocked') {
+        matchesQuick = status === 'blocked';
       } else if (quickFilter === 'HasVehicles') {
         matchesQuick = v.vehicle_count > 0;
       } else if (quickFilter === 'HasDrivers') {
@@ -452,13 +599,64 @@ const Vendors = () => {
   };
 
   // Small status pill helper
-  const renderStatusBadge = (statusStr) => {
+  const renderStatusBadge = (statusStr, vendor = null) => {
     const s = (statusStr || '').toLowerCase().trim();
     let bg = '#F1F5F9';
     let text = '#475569';
     let border = '#E2E8F0';
     let dot = '#94A3B8';
     let label = statusStr || 'Inactive';
+
+    if (s === 'blocked') {
+      bg = '#FEF2F2';
+      text = '#DC2626';
+      border = '#FECACA';
+      dot = '#EF4444';
+      label = 'Blocked';
+
+      return (
+        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              backgroundColor: bg,
+              color: text,
+              border: `1px solid ${border}`
+            }}
+            title={vendor?.block_reason ? `Block Reason: ${vendor.block_reason}${vendor.blocked_at ? ` (${new Date(vendor.blocked_at).toLocaleString()})` : ''}` : 'Partner Account Blocked'}
+          >
+            <Ban style={{ width: '12px', height: '12px', color: '#DC2626' }} />
+            <span>Blocked</span>
+          </span>
+          {vendor?.block_reason && (
+            <span
+              style={{
+                fontSize: '0.6875rem',
+                color: '#991B1B',
+                fontWeight: 600,
+                maxWidth: '170px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                backgroundColor: '#FEE2E2',
+                padding: '1px 6px',
+                borderRadius: '4px',
+                border: '1px solid #FECACA'
+              }}
+              title={`Reason: ${vendor.block_reason}${vendor.blocked_at ? `\nBlocked At: ${new Date(vendor.blocked_at).toLocaleString()}` : ''}`}
+            >
+              {vendor.block_reason}
+            </span>
+          )}
+        </div>
+      );
+    }
 
     if (['active', 'verified', 'filled'].includes(s)) {
       bg = '#ECFDF5';
@@ -771,13 +969,19 @@ const Vendors = () => {
             </span>
 
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#DC2626' }} />
+              <span style={{ color: '#64748B' }}>Blocked:</span>
+              <strong style={{ color: '#DC2626' }}>{kpiMetrics.blocked}</strong>
+            </span>
+
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#D97706' }} />
               <span style={{ color: '#64748B' }}>Maintenance / Notified:</span>
               <strong style={{ color: '#111827' }}>{kpiMetrics.notified}</strong>
             </span>
 
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#DC2626' }} />
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444' }} />
               <span style={{ color: '#64748B' }}>Unavailable / Pending:</span>
               <strong style={{ color: '#111827' }}>{kpiMetrics.pending}</strong>
             </span>
@@ -808,6 +1012,14 @@ const Vendors = () => {
               }}
             />
             <div
+              title={`Blocked: ${kpiMetrics.blocked}`}
+              style={{
+                width: `${(kpiMetrics.blocked / kpiMetrics.total) * 100}%`,
+                backgroundColor: '#DC2626',
+                transition: 'width 0.3s ease'
+              }}
+            />
+            <div
               title={`Notified: ${kpiMetrics.notified}`}
               style={{
                 width: `${(kpiMetrics.notified / kpiMetrics.total) * 100}%`,
@@ -819,7 +1031,7 @@ const Vendors = () => {
               title={`Pending / Inactive: ${kpiMetrics.pending}`}
               style={{
                 width: `${(kpiMetrics.pending / kpiMetrics.total) * 100}%`,
-                backgroundColor: '#DC2626',
+                backgroundColor: '#F87171',
                 transition: 'width 0.3s ease'
               }}
             />
@@ -1063,6 +1275,7 @@ const Vendors = () => {
           >
             <option value="All">Status: All</option>
             <option value="active">Status: Active</option>
+            <option value="blocked">Status: Blocked ({kpiMetrics.blocked})</option>
             <option value="notified">Status: Notified</option>
             <option value="pending">Status: Pending</option>
             <option value="suspended">Status: Suspended</option>
@@ -1173,6 +1386,7 @@ const Vendors = () => {
         {[
           { id: 'All', label: 'All Vendors', count: kpiMetrics.total },
           { id: 'Active', label: 'Active', count: kpiMetrics.active },
+          { id: 'Blocked', label: 'Blocked', count: kpiMetrics.blocked },
           { id: 'HasVehicles', label: 'Has Vehicles', count: kpiMetrics.hasVehicles },
           { id: 'HasDrivers', label: 'Has Drivers', count: kpiMetrics.hasDrivers },
           { id: 'Both', label: 'Full Fleet', count: kpiMetrics.fullFleet },
@@ -1417,42 +1631,114 @@ const Vendors = () => {
 
                       {/* 6. STATUS */}
                       <td style={{ padding: '16px 20px', verticalAlign: 'middle' }}>
-                        {renderStatusBadge(vendor.status)}
+                        {renderStatusBadge(vendor.status, vendor)}
                       </td>
 
                       {/* 7. ACTIONS */}
                       <td style={{ padding: '16px 20px', verticalAlign: 'middle', textAlign: 'right' }}>
-                        <button
-                          onClick={() => handleOpenInspect(vendor)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '8px 14px',
-                            backgroundColor: '#FFFFFF',
-                            border: '1px solid #CBD5E1',
-                            borderRadius: '8px',
-                            fontSize: '0.8125rem',
-                            fontWeight: 600,
-                            color: '#111827',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#FFFBEB';
-                            e.currentTarget.style.borderColor = '#F59E0B';
-                            e.currentTarget.style.color = '#B45309';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#FFFFFF';
-                            e.currentTarget.style.borderColor = '#CBD5E1';
-                            e.currentTarget.style.color = '#111827';
-                          }}
-                        >
-                          <span>Inspect Fleet</span>
-                          <ChevronRight style={{ width: '14px', height: '14px', color: '#94A3B8' }} />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                          {vendor.status === 'blocked' ? (
+                            <button
+                              onClick={() => {
+                                setSelectedVendorForUnblock(vendor);
+                                setShowUnblockModal(true);
+                              }}
+                              title="Unblock Partner Account"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '7px 12px',
+                                backgroundColor: '#ECFDF5',
+                                border: '1px solid #A7F3D0',
+                                borderRadius: '8px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: '#047857',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#D1FAE5';
+                                e.currentTarget.style.borderColor = '#6EE7B7';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '#ECFDF5';
+                                e.currentTarget.style.borderColor = '#A7F3D0';
+                              }}
+                            >
+                              <Unlock style={{ width: '13px', height: '13px' }} />
+                              <span>Unblock</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSelectedVendorForBlock(vendor);
+                                setBlockReasonCategory('Payment Default / Overdue Commission');
+                                setCustomBlockNote('');
+                                setShowBlockModal(true);
+                              }}
+                              title="Block Partner Account"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '7px 12px',
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid #FECACA',
+                                borderRadius: '8px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                color: '#DC2626',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#FEF2F2';
+                                e.currentTarget.style.borderColor = '#EF4444';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '#FFFFFF';
+                                e.currentTarget.style.borderColor = '#FECACA';
+                              }}
+                            >
+                              <Ban style={{ width: '13px', height: '13px' }} />
+                              <span>Block</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleOpenInspect(vendor)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '7px 12px',
+                              backgroundColor: '#FFFFFF',
+                              border: '1px solid #CBD5E1',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              color: '#111827',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#FFFBEB';
+                              e.currentTarget.style.borderColor = '#F59E0B';
+                              e.currentTarget.style.color = '#B45309';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#FFFFFF';
+                              e.currentTarget.style.borderColor = '#CBD5E1';
+                              e.currentTarget.style.color = '#111827';
+                            }}
+                          >
+                            <span>Inspect</span>
+                            <ChevronRight style={{ width: '13px', height: '13px', color: '#94A3B8' }} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1718,7 +2004,7 @@ const Vendors = () => {
                       </div>
                     )}
                     <div style={{ marginTop: '4px' }}>
-                      {renderStatusBadge(vendorDetails?.vendor?.status)}
+                      {renderStatusBadge(vendorDetails?.vendor?.status, vendorDetails?.vendor)}
                     </div>
                   </div>
                 </div>
@@ -1751,6 +2037,38 @@ const Vendors = () => {
               </div>
             ) : vendorDetails ? (
               <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+                {/* 0. ACCOUNT SUSPENSION BANNER */}
+                {vendorDetails.vendor.status === 'blocked' && (
+                  <div style={{
+                    backgroundColor: '#FEF2F2',
+                    border: '1px solid #FECACA',
+                    borderRadius: '10px',
+                    padding: '14px 16px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px',
+                    boxShadow: '0 1px 2px rgba(220, 38, 38, 0.05)'
+                  }}>
+                    <Ban style={{ width: '20px', height: '20px', color: '#DC2626', flexShrink: 0, marginTop: '2px' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#991B1B' }}>
+                        Partner Account Suspended / Blocked
+                      </div>
+                      <div style={{ fontSize: '0.8125rem', color: '#B91C1C', marginTop: '3px' }}>
+                        <strong>Reason:</strong> {vendorDetails.vendor.block_reason || 'Administrative restriction'}
+                      </div>
+                      {vendorDetails.vendor.blocked_at && (
+                        <div style={{ fontSize: '0.75rem', color: '#7F1D1D', marginTop: '4px' }}>
+                          Blocked on: {new Date(vendorDetails.vendor.blocked_at).toLocaleString()}
+                        </div>
+                      )}
+                      <div style={{ fontSize: '0.75rem', color: '#991B1B', marginTop: '6px', fontStyle: 'italic' }}>
+                        All attached fleet drivers are forced offline. Bookings cannot be dispatched to this vendor until unblocked.
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* 1. CONTACT SECTION */}
                 <div style={{ marginBottom: '22px' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em', marginBottom: '10px' }}>
@@ -1982,6 +2300,60 @@ const Vendors = () => {
                   display: 'flex',
                   gap: '10px'
                 }}>
+                  {vendorDetails.vendor.status === 'blocked' ? (
+                    <button
+                      onClick={() => {
+                        setSelectedVendorForUnblock(vendorDetails.vendor);
+                        setShowUnblockModal(true);
+                      }}
+                      style={{
+                        flex: 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '9px',
+                        backgroundColor: '#ECFDF5',
+                        border: '1px solid #A7F3D0',
+                        borderRadius: '8px',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        color: '#047857',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Unlock style={{ width: '14px', height: '14px' }} />
+                      <span>Unblock Partner</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setSelectedVendorForBlock(vendorDetails.vendor);
+                        setBlockReasonCategory('Payment Default / Overdue Commission');
+                        setCustomBlockNote('');
+                        setShowBlockModal(true);
+                      }}
+                      style={{
+                        flex: 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '9px',
+                        backgroundColor: '#FEF2F2',
+                        border: '1px solid #FECACA',
+                        borderRadius: '8px',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        color: '#DC2626',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Ban style={{ width: '14px', height: '14px' }} />
+                      <span>Block Partner</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => {
                       addToast(`Partner settings for ${vendorDetails.vendor.vendor_name} opened.`, 'info');
@@ -2284,6 +2656,439 @@ const Vendors = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ==================================================
+          11. BLOCK VENDOR MODAL
+          ================================================== */}
+      {showBlockModal && selectedVendorForBlock && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.55)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1050,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '520px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #FEE2E2',
+            overflow: 'hidden'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '18px 24px',
+              borderBottom: '1px solid #FEE2E2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#FEF2F2'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  backgroundColor: '#FEE2E2',
+                  border: '1px solid #FECACA',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#DC2626'
+                }}>
+                  <Ban style={{ width: '22px', height: '22px' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: '#991B1B', margin: 0 }}>
+                    Block Vendor Partner
+                  </h3>
+                  <p style={{ fontSize: '0.8125rem', color: '#B91C1C', margin: '2px 0 0' }}>
+                    Restrict portal access & force attached fleet offline
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!isBlockingLoading) {
+                    setShowBlockModal(false);
+                    setSelectedVendorForBlock(null);
+                  }
+                }}
+                disabled={isBlockingLoading}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94A3B8',
+                  cursor: isBlockingLoading ? 'not-allowed' : 'pointer',
+                  padding: '4px'
+                }}
+              >
+                <X style={{ width: '20px', height: '20px' }} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Target Vendor Summary Card */}
+              <div style={{
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#111827' }}>
+                    {selectedVendorForBlock.vendor_name || 'Transport Partner'}
+                  </div>
+                  {selectedVendorForBlock.agency_name && (
+                    <div style={{ fontSize: '0.8125rem', color: '#D97706', fontWeight: 600 }}>
+                      {selectedVendorForBlock.agency_name}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.75rem', color: '#64748B', fontFamily: 'monospace', marginTop: '2px' }}>
+                    {selectedVendorForBlock.vendor_phone}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#64748B' }}>
+                  <div>Fleet: <strong style={{ color: '#111827' }}>{selectedVendorForBlock.vehicle_count || 0} Cars</strong></div>
+                  <div>Drivers: <strong style={{ color: '#111827' }}>{selectedVendorForBlock.driver_count || 0} Attached</strong></div>
+                </div>
+              </div>
+
+              {/* Safety Alert */}
+              <div style={{
+                backgroundColor: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                fontSize: '0.8125rem',
+                color: '#92400E'
+              }}>
+                <AlertTriangle style={{ width: '18px', height: '18px', color: '#D97706', flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ lineHeight: 1.45 }}>
+                  <strong>Safety Action:</strong> Blocking this vendor will prevent new trip dispatches and immediately force <strong>{selectedVendorForBlock.driver_count || 0} attached driver(s)</strong> offline.
+                </div>
+              </div>
+
+              {/* Reason Category Dropdown */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  Primary Block Reason *
+                </label>
+                <select
+                  value={blockReasonCategory}
+                  onChange={(e) => setBlockReasonCategory(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '0.875rem',
+                    backgroundColor: '#FFFFFF',
+                    color: '#111827',
+                    fontWeight: 500,
+                    outline: 'none'
+                  }}
+                >
+                  <option value="Payment Default / Overdue Commission">Payment Default / Overdue Commission</option>
+                  <option value="Customer Dispute / Misbehavior">Customer Dispute / Misbehavior</option>
+                  <option value="Rash Driving / Safety Violation">Rash Driving / Safety Violation</option>
+                  <option value="Document Verification Failure / Expired RC or DL">Document Verification Failure / Expired RC or DL</option>
+                  <option value="Non-fulfillment of Accepted Bookings">Non-fulfillment of Accepted Bookings</option>
+                  <option value="Fraudulent Activity / Rate Manipulation">Fraudulent Activity / Rate Manipulation</option>
+                  <option value="Other (Custom Reason)">Other (Custom Reason)</option>
+                </select>
+              </div>
+
+              {/* Additional Details Textarea */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  Specific Reason Details / Administrative Notes {blockReasonCategory === 'Other (Custom Reason)' ? '*' : '(Optional)'}
+                </label>
+                <textarea
+                  rows={3}
+                  value={customBlockNote}
+                  onChange={(e) => setCustomBlockNote(e.target.value)}
+                  placeholder="e.g. Outstanding commission ₹14,200 pending for 45 days. Disregard of 3 reminders."
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '0.875rem',
+                    fontFamily: 'inherit',
+                    color: '#111827',
+                    resize: 'vertical',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '6px',
+                paddingTop: '16px',
+                borderTop: '1px solid #E5E7EB'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBlockModal(false);
+                    setSelectedVendorForBlock(null);
+                  }}
+                  disabled={isBlockingLoading}
+                  style={{
+                    padding: '9px 18px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    cursor: isBlockingLoading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmBlock}
+                  disabled={isBlockingLoading || (blockReasonCategory === 'Other (Custom Reason)' && !customBlockNote.trim())}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '9px 20px',
+                    backgroundColor: '#DC2626',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    cursor: isBlockingLoading ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 1px 3px rgba(220, 38, 38, 0.25)',
+                    opacity: isBlockingLoading ? 0.8 : 1
+                  }}
+                >
+                  {isBlockingLoading ? (
+                    <>
+                      <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+                      <span>Blocking Partner...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Ban style={{ width: '16px', height: '16px' }} />
+                      <span>Confirm & Block Vendor</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================
+          12. UNBLOCK VENDOR MODAL
+          ================================================== */}
+      {showUnblockModal && selectedVendorForUnblock && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.55)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1050,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '480px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #A7F3D0',
+            overflow: 'hidden'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '18px 24px',
+              borderBottom: '1px solid #E5E7EB',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#ECFDF5'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  backgroundColor: '#D1FAE5',
+                  border: '1px solid #A7F3D0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#059669'
+                }}>
+                  <Unlock style={{ width: '22px', height: '22px' }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: '#065F46', margin: 0 }}>
+                    Unblock Vendor Partner
+                  </h3>
+                  <p style={{ fontSize: '0.8125rem', color: '#047857', margin: '2px 0 0' }}>
+                    Restore active standing & permit fleet dispatch
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (!isUnblockingLoading) {
+                    setShowUnblockModal(false);
+                    setSelectedVendorForUnblock(null);
+                  }
+                }}
+                disabled={isUnblockingLoading}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94A3B8',
+                  cursor: isUnblockingLoading ? 'not-allowed' : 'pointer',
+                  padding: '4px'
+                }}
+              >
+                <X style={{ width: '20px', height: '20px' }} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <p style={{ fontSize: '0.9rem', color: '#334155', margin: 0, lineHeight: 1.5 }}>
+                Are you sure you want to unblock <strong>{selectedVendorForUnblock.vendor_name || selectedVendorForUnblock.vendor_phone}</strong>?
+              </p>
+
+              {selectedVendorForUnblock.block_reason && (
+                <div style={{
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  fontSize: '0.8125rem'
+                }}>
+                  <div style={{ color: '#991B1B', fontWeight: 700 }}>Recorded Block Reason:</div>
+                  <div style={{ color: '#B91C1C', marginTop: '2px' }}>{selectedVendorForUnblock.block_reason}</div>
+                  {selectedVendorForUnblock.blocked_at && (
+                    <div style={{ color: '#7F1D1D', fontSize: '0.75rem', marginTop: '3px' }}>
+                      Blocked on: {new Date(selectedVendorForUnblock.blocked_at).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{
+                backgroundColor: '#EFF6FF',
+                border: '1px solid #BFDBFE',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                fontSize: '0.8125rem',
+                color: '#1E40AF',
+                lineHeight: 1.45
+              }}>
+                <CheckCircle2 style={{ width: '15px', height: '15px', display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px', color: '#2563EB' }} />
+                Unblocking will restore this vendor to <strong>Active</strong> status. Attached fleet drivers will regain access to go online.
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '8px',
+                paddingTop: '16px',
+                borderTop: '1px solid #E5E7EB'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUnblockModal(false);
+                    setSelectedVendorForUnblock(null);
+                  }}
+                  disabled={isUnblockingLoading}
+                  style={{
+                    padding: '9px 18px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: '#475569',
+                    cursor: isUnblockingLoading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmUnblock}
+                  disabled={isUnblockingLoading}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '9px 20px',
+                    backgroundColor: '#059669',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    cursor: isUnblockingLoading ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 1px 3px rgba(5, 150, 105, 0.25)'
+                  }}
+                >
+                  {isUnblockingLoading ? (
+                    <>
+                      <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+                      <span>Unblocking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock style={{ width: '16px', height: '16px' }} />
+                      <span>Confirm Unblock</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
