@@ -18,13 +18,18 @@ import {
   ExternalLink,
   Sparkles,
   ChevronRight,
-  Headphones
+  Headphones,
+  Car,
+  Users
 } from 'lucide-react';
 import { endpoints } from '../../config/api';
 import { useToast } from '../../context/ToastContext';
 
 export default function SupportDesk() {
   const { addToast } = useToast();
+
+  // Top Level Category: 'vendor' (Drivers/Fleets) vs 'customer' (Passengers)
+  const [supportCategory, setSupportCategory] = useState('vendor');
 
   // State
   const [threads, setThreads] = useState([]);
@@ -42,17 +47,22 @@ export default function SupportDesk() {
 
   const messagesEndRef = useRef(null);
 
-  // 1. Fetch Threads
+  // 1. Fetch Threads for current category
   const fetchThreads = async (silent = false) => {
     if (!silent) setIsLoadingThreads(true);
     try {
-      const res = await fetch(`${endpoints.supportChat}?action=get_threads`);
+      const res = await fetch(`${endpoints.supportChat}?action=get_threads&user_type=${supportCategory}`);
       const data = await res.json();
       if (data.status === 'success') {
         const list = data.threads || [];
         setThreads(list);
-        if (!activePhone && list.length > 0) {
+        // If current activePhone not in list or none selected, select first
+        if (list.length > 0 && (!activePhone || !list.some(t => t.vendor_phone === activePhone))) {
           setActivePhone(list[0].vendor_phone);
+        } else if (list.length === 0) {
+          setActivePhone(null);
+          setActiveVendor(null);
+          setMessages([]);
         }
       }
     } catch (err) {
@@ -67,12 +77,12 @@ export default function SupportDesk() {
     if (!phone) return;
     if (!silent) setIsLoadingMessages(true);
     try {
-      const res = await fetch(`${endpoints.supportChat}?action=get_messages&vendor_phone=${phone}&reader=admin`);
+      const res = await fetch(`${endpoints.supportChat}?action=get_messages&user_phone=${phone}&user_type=${supportCategory}&reader=admin`);
       const data = await res.json();
       if (data.status === 'success') {
         setMessages(data.messages || []);
-        if (data.vendor) {
-          setActiveVendor(data.vendor);
+        if (data.vendor || data.user) {
+          setActiveVendor(data.vendor || data.user);
         }
       }
     } catch (err) {
@@ -82,9 +92,16 @@ export default function SupportDesk() {
     }
   };
 
-  // Initial load & 5-second polling
+  // Switch category
   useEffect(() => {
+    setActivePhone(null);
+    setActiveVendor(null);
+    setMessages([]);
     fetchThreads();
+  }, [supportCategory]);
+
+  // Polling every 5 seconds
+  useEffect(() => {
     const interval = setInterval(() => {
       fetchThreads(true);
       if (activePhone) {
@@ -92,7 +109,7 @@ export default function SupportDesk() {
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [activePhone]);
+  }, [activePhone, supportCategory]);
 
   // When activePhone changes, load messages
   useEffect(() => {
@@ -113,6 +130,7 @@ export default function SupportDesk() {
       const matchesSearch =
         !q ||
         (t.vendor_name || '').toLowerCase().includes(q) ||
+        (t.user_name || '').toLowerCase().includes(q) ||
         (t.vendor_phone || '').includes(q) ||
         (t.agency_name || '').toLowerCase().includes(q) ||
         (t.last_message || '').toLowerCase().includes(q);
@@ -138,6 +156,8 @@ export default function SupportDesk() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          user_type: supportCategory,
+          user_phone: activePhone,
           vendor_phone: activePhone,
           sender_type: 'admin',
           sender_name: 'Rentox Support Desk',
@@ -196,11 +216,17 @@ export default function SupportDesk() {
     }
   };
 
-  const quickReplies = [
+  // Dynamic quick reply suggestions based on category
+  const quickReplies = supportCategory === 'vendor' ? [
     'Payment received. Your account has been re-activated!',
     'Please send the UPI transaction screenshot or UTR number.',
     'Your dispute is under review with accounts team.',
     'Please re-upload your valid vehicle documents.'
+  ] : [
+    'Your booking is confirmed! Driver details will be assigned 2 hours before pickup.',
+    'All highway toll taxes and driver allowances are included in your fare.',
+    'Our operations team is checking cab availability for your route right now.',
+    'Please share your booking reference ID so we can assist you.'
   ];
 
   return (
@@ -210,41 +236,46 @@ export default function SupportDesk() {
       height: 'calc(100vh - 90px)',
       backgroundColor: '#F8FAFC',
       padding: '16px 20px',
-      gap: '14px',
+      gap: '12px',
       boxSizing: 'border-box',
       fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
     }}>
       {/* ========================================================= */}
-      {/* 1. TOP HEADER BAR                                         */}
+      {/* 1. TOP HEADER & CATEGORY SWITCHER                         */}
       {/* ========================================================= */}
       <div style={{
         backgroundColor: '#FFFFFF',
         borderRadius: '12px',
         border: '1px solid #E2E8F0',
-        padding: '14px 20px',
+        padding: '12px 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {/* Left Title & Indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
-            width: '42px',
-            height: '42px',
+            width: '40px',
+            height: '40px',
             borderRadius: '10px',
-            backgroundColor: '#FEF3C7',
+            backgroundColor: supportCategory === 'vendor' ? '#FEF3C7' : '#DBEAFE',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid #FDE68A'
+            border: supportCategory === 'vendor' ? '1px solid #FDE68A' : '1px solid #BFDBFE'
           }}>
-            <MessageSquare style={{ width: '22px', height: '22px', color: '#D97706' }} />
+            {supportCategory === 'vendor' ? (
+              <Car style={{ width: '20px', height: '20px', color: '#D97706' }} />
+            ) : (
+              <Headphones style={{ width: '20px', height: '20px', color: '#2563EB' }} />
+            )}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>
-                Partner Support & Dispute Helpdesk
+              <h1 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.01em' }}>
+                {supportCategory === 'vendor' ? 'Fleet Partner & Driver Helpdesk' : 'Customer Care & Passenger Inquiries'}
               </h1>
               <span style={{
                 display: 'inline-flex',
@@ -262,37 +293,92 @@ export default function SupportDesk() {
                 Live Sync Active
               </span>
             </div>
-            <p style={{ margin: '2px 0 0 0', fontSize: '0.8125rem', color: '#64748B' }}>
-              Resolve partner disputes, verify commission receipts, and re-activate suspended accounts in real-time
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#64748B' }}>
+              {supportCategory === 'vendor'
+                ? 'Resolve partner suspensions, verify commission receipts, and re-activate accounts in real-time'
+                : 'Live passenger assistance for online bookings, ride modifications, and fare inquiries'}
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            fetchThreads();
-            if (activePhone) fetchMessages(activePhone);
-          }}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 14px',
+        {/* Center/Right Category Switcher Tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            display: 'flex',
             backgroundColor: '#F1F5F9',
-            border: '1px solid #E2E8F0',
-            borderRadius: '8px',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            color: '#334155',
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-          }}
-          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#E2E8F0'}
-          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#F1F5F9'}
-        >
-          <RefreshCw style={{ width: '14px', height: '14px' }} />
-          Refresh Feed
-        </button>
+            padding: '4px',
+            borderRadius: '10px',
+            gap: '4px',
+            border: '1px solid #E2E8F0'
+          }}>
+            <button
+              onClick={() => setSupportCategory('vendor')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '7px',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: supportCategory === 'vendor' ? '#FFFFFF' : 'transparent',
+                color: supportCategory === 'vendor' ? '#D97706' : '#64748B',
+                boxShadow: supportCategory === 'vendor' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s'
+              }}
+            >
+              <Car style={{ width: '14px', height: '14px' }} />
+              Driver & Partner Helpdesk
+            </button>
+
+            <button
+              onClick={() => setSupportCategory('customer')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '7px',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: supportCategory === 'customer' ? '#FFFFFF' : 'transparent',
+                color: supportCategory === 'customer' ? '#2563EB' : '#64748B',
+                boxShadow: supportCategory === 'customer' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s'
+              }}
+            >
+              <Users style={{ width: '14px', height: '14px' }} />
+              Customer Care Inquiries
+            </button>
+          </div>
+
+          <button
+            onClick={() => {
+              fetchThreads();
+              if (activePhone) fetchMessages(activePhone);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: '8px',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              color: '#334155',
+              cursor: 'pointer'
+            }}
+          >
+            <RefreshCw style={{ width: '13px', height: '13px' }} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* ========================================================= */}
@@ -320,7 +406,7 @@ export default function SupportDesk() {
           flexShrink: 0
         }}>
           {/* Search & Filter Toolbar */}
-          <div style={{ padding: '14px', borderBottom: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {/* Search Input */}
             <div style={{ position: 'relative' }}>
               <Search style={{
@@ -328,23 +414,23 @@ export default function SupportDesk() {
                 left: '10px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: '15px',
-                height: '15px',
+                width: '14px',
+                height: '14px',
                 color: '#94A3B8'
               }} />
               <input
                 type="text"
-                placeholder="Search vendor, phone, agency..."
+                placeholder={supportCategory === 'vendor' ? "Search partner, phone, agency..." : "Search passenger name, phone..."}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
-                  padding: '8px 12px 8px 32px',
+                  padding: '7px 12px 7px 32px',
                   backgroundColor: '#F8FAFC',
                   border: '1px solid #E2E8F0',
                   borderRadius: '8px',
-                  fontSize: '0.8125rem',
+                  fontSize: '0.8rem',
                   color: '#0F172A',
                   outline: 'none'
                 }}
@@ -356,7 +442,9 @@ export default function SupportDesk() {
               {[
                 { id: 'all', label: `All (${threads.length})` },
                 { id: 'unread', label: `Unread (${threads.filter(t => t.unread_count > 0).length})` },
-                { id: 'blocked', label: `Blocked (${threads.filter(t => t.vendor_status === 'blocked').length})` }
+                ...(supportCategory === 'vendor'
+                  ? [{ id: 'blocked', label: `Blocked (${threads.filter(t => t.vendor_status === 'blocked').length})` }]
+                  : [])
               ].map(tab => {
                 const isSel = filterType === tab.id;
                 return (
@@ -365,9 +453,9 @@ export default function SupportDesk() {
                     onClick={() => setFilterType(tab.id)}
                     style={{
                       flex: 1,
-                      padding: '6px 8px',
+                      padding: '5px 8px',
                       borderRadius: '6px',
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                       fontWeight: 700,
                       border: 'none',
                       cursor: 'pointer',
@@ -391,7 +479,7 @@ export default function SupportDesk() {
               </div>
             ) : filteredThreads.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '0.8125rem', color: '#94A3B8' }}>
-                No partner conversations match filter.
+                No conversations found in {supportCategory === 'vendor' ? 'Partner Helpdesk' : 'Customer Care'}.
               </div>
             ) : (
               filteredThreads.map(thread => {
@@ -403,11 +491,13 @@ export default function SupportDesk() {
                     key={thread.vendor_phone}
                     onClick={() => setActivePhone(thread.vendor_phone)}
                     style={{
-                      padding: '14px 16px',
+                      padding: '12px 14px',
                       cursor: 'pointer',
                       borderBottom: '1px solid #F1F5F9',
-                      backgroundColor: isActive ? '#FEF3C7' : '#FFFFFF',
-                      borderLeft: isActive ? '4px solid #D97706' : '4px solid transparent',
+                      backgroundColor: isActive ? (supportCategory === 'vendor' ? '#FEF3C7' : '#EFF6FF') : '#FFFFFF',
+                      borderLeft: isActive
+                        ? (supportCategory === 'vendor' ? '4px solid #D97706' : '4px solid #2563EB')
+                        : '4px solid transparent',
                       transition: 'background 0.15s'
                     }}
                   >
@@ -417,8 +507,12 @@ export default function SupportDesk() {
                           width: '36px',
                           height: '36px',
                           borderRadius: '50%',
-                          backgroundColor: isBlocked ? '#FEE2E2' : '#E2E8F0',
-                          color: isBlocked ? '#DC2626' : '#334155',
+                          backgroundColor: isBlocked
+                            ? '#FEE2E2'
+                            : supportCategory === 'vendor' ? '#FEF3C7' : '#DBEAFE',
+                          color: isBlocked
+                            ? '#DC2626'
+                            : supportCategory === 'vendor' ? '#D97706' : '#2563EB',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -426,13 +520,13 @@ export default function SupportDesk() {
                           fontSize: '0.875rem',
                           flexShrink: 0
                         }}>
-                          {thread.vendor_name ? thread.vendor_name.charAt(0).toUpperCase() : 'P'}
+                          {(thread.vendor_name || thread.user_name || 'U').charAt(0).toUpperCase()}
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {thread.vendor_name || 'Transport Partner'}
+                          <h4 style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {thread.vendor_name || thread.user_name || (supportCategory === 'vendor' ? 'Transport Partner' : 'Passenger')}
                           </h4>
-                          <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#64748B', fontFamily: 'monospace' }}>
+                          <p style={{ margin: '2px 0 0 0', fontSize: '0.72rem', color: '#64748B', fontFamily: 'monospace' }}>
                             {thread.vendor_phone}
                           </p>
                         </div>
@@ -440,28 +534,41 @@ export default function SupportDesk() {
 
                       {/* Status & Unread Count */}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-                        {isBlocked ? (
-                          <span style={{
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '0.6875rem',
-                            fontWeight: 800,
-                            backgroundColor: '#FEE2E2',
-                            color: '#991B1B',
-                            border: '1px solid #FECACA'
-                          }}>
-                            BLOCKED
-                          </span>
+                        {supportCategory === 'vendor' ? (
+                          isBlocked ? (
+                            <span style={{
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '0.6875rem',
+                              fontWeight: 800,
+                              backgroundColor: '#FEE2E2',
+                              color: '#991B1B',
+                              border: '1px solid #FECACA'
+                            }}>
+                              BLOCKED
+                            </span>
+                          ) : (
+                            <span style={{
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '0.6875rem',
+                              fontWeight: 600,
+                              backgroundColor: '#ECFDF5',
+                              color: '#065F46'
+                            }}>
+                              ACTIVE
+                            </span>
+                          )
                         ) : (
                           <span style={{
                             padding: '2px 6px',
                             borderRadius: '4px',
                             fontSize: '0.6875rem',
                             fontWeight: 600,
-                            backgroundColor: '#ECFDF5',
-                            color: '#065F46'
+                            backgroundColor: '#EFF6FF',
+                            color: '#1D4ED8'
                           }}>
-                            ACTIVE
+                            PASSENGER
                           </span>
                         )}
 
@@ -471,7 +578,7 @@ export default function SupportDesk() {
                             height: '18px',
                             padding: '0 5px',
                             borderRadius: '9999px',
-                            backgroundColor: '#D97706',
+                            backgroundColor: supportCategory === 'vendor' ? '#D97706' : '#2563EB',
                             color: '#FFFFFF',
                             fontSize: '0.6875rem',
                             fontWeight: 800,
@@ -486,7 +593,7 @@ export default function SupportDesk() {
                     </div>
 
                     {/* Snippet */}
-                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748B' }}>
+                    <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748B' }}>
                       <p style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '230px' }}>
                         {thread.has_attachment && <strong style={{ color: '#D97706' }}>[Receipt] </strong>}
                         {thread.last_message || 'No messages yet'}
@@ -519,7 +626,7 @@ export default function SupportDesk() {
             <>
               {/* Workspace Header */}
               <div style={{
-                padding: '14px 20px',
+                padding: '12px 20px',
                 borderBottom: '1px solid #E2E8F0',
                 display: 'flex',
                 alignItems: 'center',
@@ -532,38 +639,59 @@ export default function SupportDesk() {
                     width: '40px',
                     height: '40px',
                     borderRadius: '50%',
-                    backgroundColor: activeVendor?.status === 'blocked' ? '#FEE2E2' : '#FEF3C7',
-                    color: activeVendor?.status === 'blocked' ? '#DC2626' : '#D97706',
+                    backgroundColor: activeVendor?.status === 'blocked'
+                      ? '#FEE2E2'
+                      : supportCategory === 'vendor' ? '#FEF3C7' : '#DBEAFE',
+                    color: activeVendor?.status === 'blocked'
+                      ? '#DC2626'
+                      : supportCategory === 'vendor' ? '#D97706' : '#2563EB',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 800,
                     fontSize: '1rem',
-                    border: activeVendor?.status === 'blocked' ? '1px solid #FECACA' : '1px solid #FDE68A'
+                    border: activeVendor?.status === 'blocked' ? '1px solid #FECACA' : '1px solid #E2E8F0'
                   }}>
-                    {activeVendor?.name ? activeVendor.name.charAt(0).toUpperCase() : 'P'}
+                    {(activeVendor?.name || activeVendor?.user_name || 'U').charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <h3 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 800, color: '#0F172A' }}>
-                        {activeVendor?.name || 'Transport Partner'}
+                      <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
+                        {activeVendor?.name || activeVendor?.user_name || (supportCategory === 'vendor' ? 'Transport Partner' : 'Passenger')}
                       </h3>
-                      {activeVendor?.status === 'blocked' ? (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '2px 8px',
-                          borderRadius: '9999px',
-                          fontSize: '0.75rem',
-                          fontWeight: 800,
-                          backgroundColor: '#FEE2E2',
-                          color: '#991B1B',
-                          border: '1px solid #FECACA'
-                        }}>
-                          <ShieldAlert style={{ width: '12px', height: '12px' }} />
-                          Suspended Account
-                        </span>
+                      {supportCategory === 'vendor' ? (
+                        activeVendor?.status === 'blocked' ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            backgroundColor: '#FEE2E2',
+                            color: '#991B1B',
+                            border: '1px solid #FECACA'
+                          }}>
+                            <ShieldAlert style={{ width: '12px', height: '12px' }} />
+                            Suspended Account
+                          </span>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            backgroundColor: '#ECFDF5',
+                            color: '#065F46'
+                          }}>
+                            <ShieldCheck style={{ width: '12px', height: '12px' }} />
+                            Active Partner
+                          </span>
+                        )
                       ) : (
                         <span style={{
                           display: 'inline-flex',
@@ -571,102 +699,97 @@ export default function SupportDesk() {
                           gap: '4px',
                           padding: '2px 8px',
                           borderRadius: '9999px',
-                          fontSize: '0.75rem',
+                          fontSize: '0.72rem',
                           fontWeight: 600,
-                          backgroundColor: '#ECFDF5',
-                          color: '#065F46'
+                          backgroundColor: '#EFF6FF',
+                          color: '#1D4ED8'
                         }}>
-                          <ShieldCheck style={{ width: '12px', height: '12px' }} />
-                          Active Partner
+                          <Users style={{ width: '12px', height: '12px' }} />
+                          Online Customer
                         </span>
                       )}
                     </div>
                     <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: '#64748B' }}>
                       <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{activePhone}</span>
                       {activeVendor?.agency_name && (
-                        <span> • Agency: <strong>{activeVendor.agency_name}</strong></span>
+                        <span> • {activeVendor.agency_name}</span>
                       )}
                     </p>
                   </div>
                 </div>
 
-                {/* Instant Unblock / Block Action Button */}
-                <div>
-                  {activeVendor?.status === 'blocked' ? (
-                    <button
-                      onClick={() => handleToggleBlock('active')}
-                      disabled={isActionLoading}
-                      style={{
-                        padding: '9px 18px',
-                        backgroundColor: '#059669',
-                        color: '#FFFFFF',
-                        borderRadius: '8px',
-                        border: 'none',
-                        fontSize: '0.8125rem',
-                        fontWeight: 700,
-                        cursor: isActionLoading ? 'not-allowed' : 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#047857'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#059669'}
-                    >
-                      <CheckCircle2 style={{ width: '16px', height: '16px' }} />
-                      {isActionLoading ? 'Processing...' : 'Unblock Partner Now'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleToggleBlock('blocked')}
-                      disabled={isActionLoading}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: '#FFFFFF',
-                        color: '#DC2626',
-                        borderRadius: '8px',
-                        border: '1px solid #FCA5A5',
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        cursor: isActionLoading ? 'not-allowed' : 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FEF2F2'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FFFFFF'}
-                    >
-                      <XCircle style={{ width: '15px', height: '15px' }} />
-                      Block Account
-                    </button>
-                  )}
-                </div>
+                {/* Instant Unblock / Block Action Button (for Vendors) */}
+                {supportCategory === 'vendor' && (
+                  <div>
+                    {activeVendor?.status === 'blocked' ? (
+                      <button
+                        onClick={() => handleToggleBlock('active')}
+                        disabled={isActionLoading}
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#059669',
+                          color: '#FFFFFF',
+                          borderRadius: '8px',
+                          border: 'none',
+                          fontSize: '0.8125rem',
+                          fontWeight: 700,
+                          cursor: isActionLoading ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <CheckCircle2 style={{ width: '15px', height: '15px' }} />
+                        {isActionLoading ? 'Processing...' : 'Unblock Partner Now'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleBlock('blocked')}
+                        disabled={isActionLoading}
+                        style={{
+                          padding: '7px 14px',
+                          backgroundColor: '#FFFFFF',
+                          color: '#DC2626',
+                          borderRadius: '8px',
+                          border: '1px solid #FCA5A5',
+                          fontSize: '0.8125rem',
+                          fontWeight: 600,
+                          cursor: isActionLoading ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <XCircle style={{ width: '14px', height: '14px' }} />
+                        Block Account
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Suspension Reason Warning Bar if blocked */}
-              {activeVendor?.status === 'blocked' && (
+              {supportCategory === 'vendor' && activeVendor?.status === 'blocked' && (
                 <div style={{
                   backgroundColor: '#FEF2F2',
                   borderBottom: '1px solid #FEE2E2',
-                  padding: '10px 20px',
+                  padding: '9px 20px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  fontSize: '0.8125rem',
+                  fontSize: '0.8rem',
                   color: '#991B1B',
                   flexShrink: 0
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertTriangle style={{ width: '16px', height: '16px', color: '#DC2626' }} />
+                    <AlertTriangle style={{ width: '15px', height: '15px', color: '#DC2626' }} />
                     <span>
                       <strong>Account Suspension Reason:</strong>{' '}
                       {activeVendor.block_reason || 'Administrative Default / Commission Overdue'}
                     </span>
                   </div>
                   {activeVendor.blocked_at && (
-                    <span style={{ fontSize: '0.75rem', color: '#B91C1C' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#B91C1C' }}>
                       Blocked on: {activeVendor.blocked_at}
                     </span>
                   )}
@@ -677,11 +800,11 @@ export default function SupportDesk() {
               <div style={{
                 flex: 1,
                 overflowY: 'auto',
-                padding: '20px',
+                padding: '18px 20px',
                 backgroundColor: '#F8FAFC',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '14px'
+                gap: '12px'
               }}>
                 {isLoadingMessages && messages.length === 0 ? (
                   <div style={{ margin: 'auto', fontSize: '0.8125rem', color: '#94A3B8' }}>
@@ -690,7 +813,7 @@ export default function SupportDesk() {
                 ) : messages.length === 0 ? (
                   <div style={{ margin: 'auto', textAlign: 'center', color: '#94A3B8' }}>
                     <MessageSquare style={{ width: '32px', height: '32px', margin: '0 auto 8px auto', opacity: 0.5 }} />
-                    <p style={{ margin: 0, fontSize: '0.8125rem' }}>No messages yet with this partner.</p>
+                    <p style={{ margin: 0, fontSize: '0.8125rem' }}>No messages yet with this {supportCategory === 'vendor' ? 'partner' : 'customer'}.</p>
                   </div>
                 ) : (
                   messages.map(msg => {
@@ -704,14 +827,14 @@ export default function SupportDesk() {
                           alignItems: isAdmin ? 'flex-end' : 'flex-start'
                         }}
                       >
-                        <div style={{ fontSize: '0.6875rem', color: '#64748B', marginBottom: '4px', padding: '0 4px' }}>
-                          <strong>{isAdmin ? 'Rentox Helpdesk' : activeVendor?.name || 'Partner'}</strong> •{' '}
+                        <div style={{ fontSize: '0.6875rem', color: '#64748B', marginBottom: '3px', padding: '0 4px' }}>
+                          <strong>{isAdmin ? 'Rentox Helpdesk' : activeVendor?.name || activeVendor?.user_name || (supportCategory === 'vendor' ? 'Partner' : 'Passenger')}</strong> •{' '}
                           {msg.created_at ? msg.created_at.split(' ')[1]?.slice(0, 5) : ''}
                         </div>
 
                         <div style={{
                           maxWidth: '65%',
-                          padding: '12px 16px',
+                          padding: '11px 15px',
                           borderRadius: isAdmin ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                           backgroundColor: isAdmin ? '#0F172A' : '#FFFFFF',
                           color: isAdmin ? '#FFFFFF' : '#0F172A',
@@ -752,7 +875,7 @@ export default function SupportDesk() {
 
               {/* Quick Reply Templates Bar */}
               <div style={{
-                padding: '8px 16px',
+                padding: '7px 16px',
                 backgroundColor: '#F1F5F9',
                 borderTop: '1px solid #E2E8F0',
                 display: 'flex',
@@ -761,8 +884,8 @@ export default function SupportDesk() {
                 overflowX: 'auto',
                 flexShrink: 0
               }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Sparkles style={{ width: '13px', height: '13px', color: '#D97706' }} />
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Sparkles style={{ width: '13px', height: '13px', color: supportCategory === 'vendor' ? '#D97706' : '#2563EB' }} />
                   Quick:
                 </span>
                 {quickReplies.map((reply, idx) => (
@@ -775,7 +898,7 @@ export default function SupportDesk() {
                       backgroundColor: '#FFFFFF',
                       border: '1px solid #CBD5E1',
                       borderRadius: '6px',
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                       fontWeight: 500,
                       color: '#334155',
                       cursor: 'pointer',
@@ -783,8 +906,8 @@ export default function SupportDesk() {
                       transition: 'all 0.15s'
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.backgroundColor = '#FEF3C7';
-                      e.currentTarget.style.borderColor = '#F59E0B';
+                      e.currentTarget.style.backgroundColor = supportCategory === 'vendor' ? '#FEF3C7' : '#EFF6FF';
+                      e.currentTarget.style.borderColor = supportCategory === 'vendor' ? '#F59E0B' : '#3B82F6';
                     }}
                     onMouseLeave={e => {
                       e.currentTarget.style.backgroundColor = '#FFFFFF';
@@ -798,7 +921,7 @@ export default function SupportDesk() {
 
               {/* Reply Input Bar */}
               <div style={{
-                padding: '14px 20px',
+                padding: '12px 20px',
                 backgroundColor: '#FFFFFF',
                 borderTop: '1px solid #E2E8F0',
                 display: 'flex',
@@ -808,7 +931,7 @@ export default function SupportDesk() {
               }}>
                 <input
                   type="text"
-                  placeholder={`Write reply to ${activeVendor?.name || 'Partner'}... (Press Enter to send)`}
+                  placeholder={`Write reply to ${activeVendor?.name || (supportCategory === 'vendor' ? 'Partner' : 'Passenger')}... (Press Enter to send)`}
                   value={replyText}
                   onChange={e => setReplyText(e.target.value)}
                   onKeyDown={e => {
@@ -819,7 +942,7 @@ export default function SupportDesk() {
                   }}
                   style={{
                     flex: 1,
-                    padding: '10px 14px',
+                    padding: '9px 14px',
                     backgroundColor: '#F8FAFC',
                     border: '1px solid #CBD5E1',
                     borderRadius: '10px',
@@ -833,9 +956,11 @@ export default function SupportDesk() {
                   onClick={() => handleSendReply()}
                   disabled={isSending || !replyText.trim()}
                   style={{
-                    padding: '10px 20px',
-                    backgroundColor: isSending || !replyText.trim() ? '#CBD5E1' : '#F59E0B',
-                    color: '#111827',
+                    padding: '9px 18px',
+                    backgroundColor: isSending || !replyText.trim()
+                      ? '#CBD5E1'
+                      : supportCategory === 'vendor' ? '#F59E0B' : '#2563EB',
+                    color: supportCategory === 'vendor' ? '#111827' : '#FFFFFF',
                     fontWeight: 700,
                     borderRadius: '10px',
                     border: 'none',
@@ -846,23 +971,17 @@ export default function SupportDesk() {
                     gap: '6px',
                     transition: 'background 0.2s'
                   }}
-                  onMouseEnter={e => {
-                    if (!isSending && replyText.trim()) e.currentTarget.style.backgroundColor = '#D97706';
-                  }}
-                  onMouseLeave={e => {
-                    if (!isSending && replyText.trim()) e.currentTarget.style.backgroundColor = '#F59E0B';
-                  }}
                 >
-                  <Send style={{ width: '15px', height: '15px' }} />
+                  <Send style={{ width: '14px', height: '14px' }} />
                   Send
                 </button>
               </div>
             </>
           ) : (
             <div style={{ margin: 'auto', textAlign: 'center', color: '#94A3B8', padding: '40px' }}>
-              <MessageSquare style={{ width: '48px', height: '48px', margin: '0 auto 12px auto', opacity: 0.3 }} />
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#334155' }}>No Conversation Selected</h3>
-              <p style={{ margin: '4px 0 0 0', fontSize: '0.8125rem' }}>Select a partner thread from the left sidebar to start chatting.</p>
+              <MessageSquare style={{ width: '44px', height: '44px', margin: '0 auto 10px auto', opacity: 0.3 }} />
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#334155' }}>No Conversation Selected</h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem' }}>Select a conversation thread from the left list to start chatting.</p>
             </div>
           )}
         </div>
