@@ -23,6 +23,7 @@ export const endpoints = {
   getCityBoundaries: `${API_BASE_URL}/get_city_boundaries.php`,
   getSettlements: `${API_BASE_URL}/get_settlements.php`,
   driverAlertSettings: `${API_BASE_URL}/driver_alert_settings.php`,
+  supportChat: `${ADMIN_BASE_URL}/support_chat.php`,
 };
 
 // Reusable Axios instance with default headers

@@ -19,6 +19,7 @@ import SettingsPrivacy from './pages/Settings/SettingsPrivacy';
 import LocalDutyFare from './pages/LocalDutyFare/LocalDutyFare';
 import Vendors from './pages/Vendors/Vendors';
 import DriverAlertSettings from './pages/DriverAlertSettings/DriverAlertSettings';
+import SupportDesk from './pages/Support/SupportDesk';
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
                       <Route path="/bookings" element={<Bookings />} />
                       <Route path="/sales-analytics" element={<SalesAnalytics />} />
                       <Route path="/vendors" element={<Vendors />} />
+                      <Route path="/support" element={<SupportDesk />} />
                       <Route path="/driver-alerts" element={<DriverAlertSettings />} />
                       <Route path="/settings" element={<SettingsPrivacy />} />
                       <Route path="*" element={<Navigate to="/" replace />} />

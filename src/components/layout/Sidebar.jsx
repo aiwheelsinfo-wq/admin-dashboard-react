@@ -19,7 +19,8 @@ import {
   Clock,
   Building2,
   Bell,
-  BarChart3
+  BarChart3,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -54,6 +55,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
         { to: '/bookings', label: 'Live Bookings', icon: ShieldCheck },
         { to: '/sales-analytics', label: 'Sales & Revenue Analytics', icon: BarChart3, badge: 'Charts', badgeType: 'live' },
         { to: '/vendors', label: 'Vendors & Fleet Partners', icon: Building2, badge: 'Fleet', badgeType: 'fleet' },
+        { to: '/support', label: 'Support & Helpdesk', icon: MessageSquare, badge: 'Chat', badgeType: 'live' },
         { to: '/settings', label: 'Settings & Privacy', icon: Settings, badge: 'Security', badgeType: 'auth' },
       ]
     }
