@@ -24,6 +24,7 @@ export const endpoints = {
   getSettlements: `${API_BASE_URL}/get_settlements.php`,
   driverAlertSettings: `${API_BASE_URL}/driver_alert_settings.php`,
   supportChat: `${ADMIN_BASE_URL}/support_chat.php`,
+  vendorWallet: `${API_BASE_URL}/vendor_wallet.php`,
 };
 
 // Reusable Axios instance with default headers

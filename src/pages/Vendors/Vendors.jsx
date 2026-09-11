@@ -35,7 +35,13 @@ import {
   RotateCcw,
   Ban,
   Unlock,
-  ShieldAlert
+  ShieldAlert,
+  Wallet,
+  Receipt,
+  ArrowUpRight,
+  ArrowDownLeft,
+  History,
+  CreditCard
 } from 'lucide-react';
 import { endpoints } from '../../config/api';
 import { useToast } from '../../context/ToastContext';
@@ -106,6 +112,20 @@ const Vendors = () => {
   });
   const [isSubmittingVendor, setIsSubmittingVendor] = useState(false);
 
+  // Vendor Wallet Adjustment Modal state
+  const [showAdjustWalletModal, setShowAdjustWalletModal] = useState(false);
+  const [selectedVendorForWallet, setSelectedVendorForWallet] = useState(null);
+  const [walletAdjustType, setWalletAdjustType] = useState('credit'); // 'credit' | 'debit'
+  const [walletAdjustAmount, setWalletAdjustAmount] = useState('');
+  const [walletAdjustReason, setWalletAdjustReason] = useState('');
+  const [isAdjustingWalletLoading, setIsAdjustingWalletLoading] = useState(false);
+
+  // Vendor Wallet Passbook / History Modal state
+  const [showWalletHistoryModal, setShowWalletHistoryModal] = useState(false);
+  const [walletHistoryVendor, setWalletHistoryVendor] = useState(null);
+  const [walletHistoryData, setWalletHistoryData] = useState(null);
+  const [isWalletHistoryLoading, setIsWalletHistoryLoading] = useState(false);
+
   // Fetch all vendors and summary stats from AWS
   const fetchVendorsData = async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -162,6 +182,9 @@ const Vendors = () => {
     let fullFleet = 0;
     let zeroAssets = 0;
     let unassignedFleet = 0; // has vehicles but no drivers attached
+    let totalWalletFloat = 0;
+    let eligibleWallets = 0;
+    let lowWallets = 0;
 
     vendors.forEach((v) => {
       const st = (v.status || '').toLowerCase().trim();
@@ -180,6 +203,14 @@ const Vendors = () => {
       if (v.vehicle_count > 0 && v.driver_count > 0) fullFleet++;
       if (v.vehicle_count === 0 && v.driver_count === 0) zeroAssets++;
       if (v.vehicle_count > 0 && v.driver_count === 0) unassignedFleet++;
+
+      const bal = Number(v.wallet_balance || 0);
+      totalWalletFloat += bal;
+      if (bal >= 100) {
+        eligibleWallets++;
+      } else {
+        lowWallets++;
+      }
     });
 
     return {
@@ -194,7 +225,10 @@ const Vendors = () => {
       zeroAssets,
       unassignedFleet,
       totalVehicles: stats.total_vehicles || 0,
-      totalDrivers: stats.total_drivers || 0
+      totalDrivers: stats.total_drivers || 0,
+      totalWalletFloat,
+      eligibleWallets,
+      lowWallets
     };
   }, [vendors, stats]);
 
@@ -349,6 +383,128 @@ const Vendors = () => {
       addToast('Network or server error unblocking vendor.', 'error');
     } finally {
       setIsUnblockingLoading(false);
+    }
+  };
+
+  // Vendor Wallet Adjustment Handlers
+  const handleOpenAdjustWallet = (vendor, type = 'credit') => {
+    setSelectedVendorForWallet(vendor);
+    setWalletAdjustType(type);
+    setWalletAdjustAmount('');
+    setWalletAdjustReason(type === 'credit' ? 'Admin Top-Up / Security Deposit' : 'Commission Adjustment / Deduction');
+    setShowAdjustWalletModal(true);
+  };
+
+  const handleConfirmAdjustWallet = async (e) => {
+    if (e) e.preventDefault();
+    if (!selectedVendorForWallet) return;
+
+    const rawAmt = parseFloat(walletAdjustAmount);
+    if (!rawAmt || isNaN(rawAmt) || rawAmt <= 0) {
+      addToast('Please enter a valid positive adjustment amount (greater than 0).', 'warning');
+      return;
+    }
+
+    if (!walletAdjustReason.trim()) {
+      addToast('Please enter a reason or note for this wallet adjustment.', 'warning');
+      return;
+    }
+
+    const finalAmount = walletAdjustType === 'credit' ? rawAmt : -rawAmt;
+    const currentBal = Number(selectedVendorForWallet.wallet_balance || 0);
+
+    if (walletAdjustType === 'debit' && rawAmt > currentBal) {
+      const proceed = window.confirm(
+        `Caution: Deducting ₹${rawAmt.toFixed(2)} will exceed the current balance of ₹${currentBal.toFixed(2)} and result in a negative balance (₹${(currentBal - rawAmt).toFixed(2)}). Do you wish to continue?`
+      );
+      if (!proceed) return;
+    }
+
+    setIsAdjustingWalletLoading(true);
+    try {
+      const res = await axios.post(
+        endpoints.vendorWallet,
+        {
+          action: 'admin_adjust',
+          phone_number: selectedVendorForWallet.vendor_phone,
+          amount: finalAmount,
+          reason: walletAdjustReason.trim()
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      if (res.data && res.data.status === 'success') {
+        const newBalance = res.data.wallet_balance !== undefined
+          ? Number(res.data.wallet_balance)
+          : currentBal + finalAmount;
+
+        addToast(
+          `Wallet successfully ${walletAdjustType === 'credit' ? 'credited' : 'debited'} with ₹${rawAmt.toFixed(2)}. Current balance: ₹${newBalance.toFixed(2)}`,
+          'success'
+        );
+
+        // Optimistically update vendor in local list
+        setVendors((prev) =>
+          prev.map((v) =>
+            v.vendor_phone === selectedVendorForWallet.vendor_phone
+              ? { ...v, wallet_balance: newBalance }
+              : v
+          )
+        );
+
+        // If currently open in inspect drawer, update it too
+        if (inspectVendorPhone === selectedVendorForWallet.vendor_phone) {
+          setVendorDetails((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  vendor: {
+                    ...prev.vendor,
+                    wallet_balance: newBalance
+                  }
+                }
+              : null
+          );
+        }
+
+        setShowAdjustWalletModal(false);
+        setSelectedVendorForWallet(null);
+        setWalletAdjustAmount('');
+        setWalletAdjustReason('');
+      } else {
+        addToast(res.data?.message || 'Failed to update vendor wallet balance.', 'error');
+      }
+    } catch (err) {
+      console.error('Error adjusting vendor wallet:', err);
+      addToast(err.response?.data?.message || 'Network error updating vendor wallet.', 'error');
+    } finally {
+      setIsAdjustingWalletLoading(false);
+    }
+  };
+
+  const handleOpenWalletHistory = async (vendor) => {
+    setSelectedVendorForWallet(vendor);
+    setWalletHistoryVendor(vendor);
+    setWalletHistoryData(null);
+    setShowWalletHistoryModal(true);
+    setIsWalletHistoryLoading(true);
+
+    try {
+      const res = await axios.get(
+        `${endpoints.vendorWallet}?action=get_wallet&phone_number=${encodeURIComponent(vendor.vendor_phone)}`,
+        { timeout: 15000 }
+      );
+
+      if (res.data && res.data.status === 'success') {
+        setWalletHistoryData(res.data);
+      } else {
+        addToast(res.data?.message || 'Unable to load wallet passbook history.', 'error');
+      }
+    } catch (err) {
+      console.error('Error fetching wallet passbook:', err);
+      addToast('Error fetching vendor transaction history.', 'error');
+    } finally {
+      setIsWalletHistoryLoading(false);
     }
   };
 
@@ -525,6 +681,8 @@ const Vendors = () => {
         matchesTab = v.driver_count > 0;
       } else if (activeTab === 'assignments') {
         matchesTab = v.vehicle_count > 0 && v.driver_count > 0;
+      } else if (activeTab === 'wallets') {
+        matchesTab = true;
       }
 
       return (
@@ -1188,7 +1346,138 @@ const Vendors = () => {
             {kpiMetrics.fullFleet}
           </span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('wallets')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: activeTab === 'wallets' ? '#111827' : '#64748B',
+            borderBottom: activeTab === 'wallets' ? '2px solid #10B981' : '2px solid transparent',
+            backgroundColor: 'transparent',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Wallet style={{ width: '16px', height: '16px', color: activeTab === 'wallets' ? '#10B981' : '#94A3B8' }} />
+          <span>Vendor Wallets</span>
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '2px 7px',
+            borderRadius: '10px',
+            backgroundColor: activeTab === 'wallets' ? '#D1FAE5' : '#F1F5F9',
+            color: activeTab === 'wallets' ? '#065F46' : '#64748B',
+            fontWeight: 700
+          }}>
+            ₹{kpiMetrics.totalWalletFloat.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+          </span>
+        </button>
       </div>
+
+      {/* WALLET MANAGEMENT KPI BANNER (when activeTab === 'wallets') */}
+      {activeTab === 'wallets' && (
+        <div style={{
+          backgroundColor: '#ECFDF5',
+          border: '1px solid #A7F3D0',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '16px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                backgroundColor: '#10B981',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(16, 185, 129, 0.25)'
+              }}>
+                <Wallet style={{ width: '20px', height: '20px' }} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#065F46' }}>
+                  Vendor Capital & Wallet Management
+                </h3>
+                <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: '#047857' }}>
+                  Manage driver/vendor security deposits, credit earnings, and inspect full transaction passbooks.
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{
+                backgroundColor: '#FFFFFF',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: '1px solid #6EE7B7',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+              }}>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase' }}>
+                  Total Floating Float
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#064E3B', fontFamily: 'monospace' }}>
+                  ₹{kpiMetrics.totalWalletFloat.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              <div style={{
+                backgroundColor: '#FFFFFF',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: '1px solid #6EE7B7',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+              }}>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase' }}>
+                  Local Taxi Eligible (≥ ₹100)
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#047857' }}>
+                  {kpiMetrics.eligibleWallets} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280' }}>/ {vendors.length}</span>
+                </div>
+              </div>
+              <div style={{
+                backgroundColor: '#FFFFFF',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: '1px solid #FECACA',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+              }}>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#DC2626', textTransform: 'uppercase' }}>
+                  Low Balance (&lt; ₹100)
+                </div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#B91C1C' }}>
+                  {kpiMetrics.lowWallets} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280' }}>vendors</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.75rem',
+            color: '#065F46',
+            borderTop: '1px solid #A7F3D0',
+            paddingTop: '10px'
+          }}>
+            <Info style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+            <span>
+              <strong>Local Taxi Booking Rule:</strong> Vendors require at least <strong>₹100</strong> in their wallet balance to receive instant ride dispatch alerts. Admins can top up or deduct funds below at any time.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* ==================================================
           4. SEARCH & FILTER TOOLBAR
@@ -1491,6 +1780,7 @@ const Vendors = () => {
                   <th style={{ padding: '14px 20px' }}>LOCATION</th>
                   <th style={{ padding: '14px 20px', textAlign: 'center' }}>FLEET</th>
                   <th style={{ padding: '14px 20px', textAlign: 'center' }}>DRIVERS</th>
+                  <th style={{ padding: '14px 20px', textAlign: 'right' }}>WALLET</th>
                   <th style={{ padding: '14px 20px' }}>STATUS</th>
                   <th style={{ padding: '14px 20px', textAlign: 'right' }}>ACTIONS</th>
                 </tr>
@@ -1629,7 +1919,52 @@ const Vendors = () => {
                         </span>
                       </td>
 
-                      {/* 6. STATUS */}
+                      {/* 6. WALLET */}
+                      <td style={{ padding: '16px 20px', verticalAlign: 'middle', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                          <span style={{
+                            fontSize: '0.9375rem',
+                            fontWeight: 800,
+                            fontFamily: 'monospace',
+                            color: Number(vendor.wallet_balance || 0) >= 100 ? '#047857' : Number(vendor.wallet_balance || 0) > 0 ? '#B45309' : '#DC2626'
+                          }}>
+                            ₹{Number(vendor.wallet_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          {Number(vendor.wallet_balance || 0) >= 100 ? (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '0.6875rem',
+                              fontWeight: 700,
+                              color: '#065F46',
+                              backgroundColor: '#D1FAE5',
+                              padding: '2px 6px',
+                              borderRadius: '4px'
+                            }}>
+                              <CheckCircle2 style={{ width: '10px', height: '10px' }} />
+                              Eligible (≥ ₹100)
+                            </span>
+                          ) : (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '0.6875rem',
+                              fontWeight: 700,
+                              color: '#991B1B',
+                              backgroundColor: '#FEE2E2',
+                              padding: '2px 6px',
+                              borderRadius: '4px'
+                            }}>
+                              <AlertTriangle style={{ width: '10px', height: '10px' }} />
+                              Low (&lt; ₹100)
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 7. STATUS */}
                       <td style={{ padding: '16px 20px', verticalAlign: 'middle' }}>
                         {renderStatusBadge(vendor.status, vendor)}
                       </td>
@@ -1706,6 +2041,68 @@ const Vendors = () => {
                               <span>Block</span>
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleOpenAdjustWallet(vendor, 'credit')}
+                            title="Adjust Vendor Wallet Balance (Credit / Debit)"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '7px 11px',
+                              backgroundColor: '#F0FDF4',
+                              border: '1px solid #BBF7D0',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: '#15803D',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#DCFCE7';
+                              e.currentTarget.style.borderColor = '#86EFAC';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#F0FDF4';
+                              e.currentTarget.style.borderColor = '#BBF7D0';
+                            }}
+                          >
+                            <Wallet style={{ width: '13px', height: '13px' }} />
+                            <span>Adjust</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenWalletHistory(vendor)}
+                            title="View Transaction Passbook"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '7px 11px',
+                              backgroundColor: '#F8FAFC',
+                              border: '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              color: '#475569',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#F1F5F9';
+                              e.currentTarget.style.borderColor = '#CBD5E1';
+                              e.currentTarget.style.color = '#1E293B';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#F8FAFC';
+                              e.currentTarget.style.borderColor = '#E2E8F0';
+                              e.currentTarget.style.color = '#475569';
+                            }}
+                          >
+                            <Receipt style={{ width: '13px', height: '13px' }} />
+                            <span>Passbook</span>
+                          </button>
 
                           <button
                             onClick={() => handleOpenInspect(vendor)}
@@ -2135,6 +2532,140 @@ const Vendors = () => {
                       <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: vendorDetails.vehicle_count > 0 ? '#059669' : '#64748B', marginTop: '6px' }}>
                         {vendorDetails.vehicle_count > 0 ? 'Ready' : 'Standby'}
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2.5 VENDOR WALLET & SECURITY FLOAT */}
+                <div style={{ marginBottom: '22px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748B', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                    VENDOR WALLET & SECURITY FLOAT
+                  </div>
+                  <div style={{
+                    backgroundColor: '#F8FAFC',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: '1px solid #E2E8F0',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          backgroundColor: '#DCFCE7',
+                          color: '#15803D',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Wallet style={{ width: '20px', height: '20px' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>Available Balance</div>
+                          <div style={{ fontSize: '1.375rem', fontWeight: 800, color: '#111827', fontFamily: 'monospace' }}>
+                            ₹{Number(vendorDetails.vendor.wallet_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        {Number(vendorDetails.vendor.wallet_balance || 0) >= 100 ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backgroundColor: '#D1FAE5',
+                            color: '#065F46',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700
+                          }}>
+                            <CheckCircle2 style={{ width: '12px', height: '12px' }} />
+                            Local Taxi Eligible
+                          </span>
+                        ) : (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backgroundColor: '#FEE2E2',
+                            color: '#991B1B',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700
+                          }}>
+                            <AlertTriangle style={{ width: '12px', height: '12px' }} />
+                            Min ₹100 Required
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid #E2E8F0' }}>
+                      <button
+                        onClick={() => handleOpenAdjustWallet(vendorDetails.vendor, 'credit')}
+                        style={{
+                          flex: 1,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          backgroundColor: '#059669',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          color: '#FFFFFF',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Plus style={{ width: '14px', height: '14px' }} />
+                        <span>Credit / Top-Up</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenAdjustWallet(vendorDetails.vendor, 'debit')}
+                        style={{
+                          flex: 1,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: '#334155',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <RotateCcw style={{ width: '13px', height: '13px' }} />
+                        <span>Debit / Deduct</span>
+                      </button>
+                      <button
+                        onClick={() => handleOpenWalletHistory(vendorDetails.vendor)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          backgroundColor: '#F1F5F9',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          color: '#475569',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Receipt style={{ width: '14px', height: '14px' }} />
+                        <span>Passbook</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -3088,6 +3619,882 @@ const Vendors = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ==================================================
+          10. VENDOR WALLET ADJUSTMENT MODAL
+          ================================================== */}
+      {showAdjustWalletModal && selectedVendorForWallet && (() => {
+        const curBal = Number(selectedVendorForWallet.wallet_balance || 0);
+        const parsedAmt = parseFloat(walletAdjustAmount) || 0;
+        const projectedBal = walletAdjustType === 'credit' ? (curBal + parsedAmt) : (curBal - parsedAmt);
+        const willBeNegative = projectedBal < 0;
+        const willBeEligible = projectedBal >= 100;
+
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 1100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              animation: 'fadeIn 0.15s ease'
+            }}
+            onClick={() => {
+              if (!isAdjustingWalletLoading) {
+                setShowAdjustWalletModal(false);
+                setSelectedVendorForWallet(null);
+              }
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '16px',
+                width: '100%',
+                maxWidth: '520px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #E5E7EB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: walletAdjustType === 'credit' ? '#F0FDF4' : '#FFFBEB'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    backgroundColor: walletAdjustType === 'credit' ? '#DCFCE7' : '#FEE2E2',
+                    color: walletAdjustType === 'credit' ? '#15803D' : '#DC2626',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Wallet style={{ width: '22px', height: '22px' }} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800, color: '#111827' }}>
+                      Vendor Wallet Adjustment
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: '#64748B' }}>
+                      {selectedVendorForWallet.vendor_name || 'Vendor'} • {selectedVendorForWallet.vendor_phone}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isAdjustingWalletLoading) {
+                      setShowAdjustWalletModal(false);
+                      setSelectedVendorForWallet(null);
+                    }
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex'
+                  }}
+                >
+                  <X style={{ width: '20px', height: '20px' }} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <form onSubmit={handleConfirmAdjustWallet} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                {/* Current Balance & Eligibility Card */}
+                <div style={{
+                  backgroundColor: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                      Current Wallet Balance
+                    </div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: curBal >= 100 ? '#047857' : '#DC2626', fontFamily: 'monospace' }}>
+                      ₹{curBal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <div>
+                    {curBal >= 100 ? (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#D1FAE5',
+                        color: '#065F46',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700
+                      }}>
+                        <CheckCircle2 style={{ width: '12px', height: '12px' }} />
+                        Local Taxi Active (≥ ₹100)
+                      </span>
+                    ) : (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#FEE2E2',
+                        color: '#991B1B',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: 700
+                      }}>
+                        <AlertTriangle style={{ width: '12px', height: '12px' }} />
+                        Low Balance (&lt; ₹100)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Adjustment Action Toggle Tabs */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
+                    Action Type
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWalletAdjustType('credit');
+                        if (!walletAdjustReason || walletAdjustReason.includes('Deduction')) {
+                          setWalletAdjustReason('Admin Top-Up / Security Deposit');
+                        }
+                      }}
+                      style={{
+                        padding: '9px 14px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        backgroundColor: walletAdjustType === 'credit' ? '#059669' : 'transparent',
+                        color: walletAdjustType === 'credit' ? '#FFFFFF' : '#475569',
+                        boxShadow: walletAdjustType === 'credit' ? '0 1px 3px rgba(5, 150, 105, 0.3)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <Plus style={{ width: '15px', height: '15px' }} />
+                      <span>Credit (+) Add Funds</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWalletAdjustType('debit');
+                        if (!walletAdjustReason || walletAdjustReason.includes('Top-Up')) {
+                          setWalletAdjustReason('Commission Adjustment / Deduction');
+                        }
+                      }}
+                      style={{
+                        padding: '9px 14px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        fontSize: '0.8125rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        backgroundColor: walletAdjustType === 'debit' ? '#DC2626' : 'transparent',
+                        color: walletAdjustType === 'debit' ? '#FFFFFF' : '#475569',
+                        boxShadow: walletAdjustType === 'debit' ? '0 1px 3px rgba(220, 38, 38, 0.3)' : 'none',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <RotateCcw style={{ width: '15px', height: '15px' }} />
+                      <span>Debit (-) Deduct Funds</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Amount Input & Quick Chips */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#334155' }}>
+                      Adjustment Amount (₹) *
+                    </label>
+                    <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                      {walletAdjustType === 'credit' ? 'Amount to add' : 'Amount to deduct'}
+                    </span>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{
+                      position: 'absolute',
+                      left: '14px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: walletAdjustType === 'credit' ? '#059669' : '#DC2626'
+                    }}>
+                      {walletAdjustType === 'credit' ? '+₹' : '-₹'}
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="1"
+                      placeholder="0.00"
+                      value={walletAdjustAmount}
+                      onChange={(e) => setWalletAdjustAmount(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '12px 14px 12px 48px',
+                        fontSize: '1.25rem',
+                        fontWeight: 800,
+                        fontFamily: 'monospace',
+                        borderRadius: '10px',
+                        border: '1.5px solid #CBD5E1',
+                        outline: 'none',
+                        backgroundColor: '#FFFFFF',
+                        color: '#111827'
+                      }}
+                    />
+                  </div>
+
+                  {/* Quick Preset Buttons */}
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                    {[100, 500, 1000, 2000, 5000].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setWalletAdjustAmount(String(preset))}
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          borderRadius: '6px',
+                          border: '1px solid #E2E8F0',
+                          backgroundColor: '#F8FAFC',
+                          color: '#334155',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EEF2F6')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+                      >
+                        +{preset}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setWalletAdjustAmount('')}
+                      style={{
+                        padding: '5px 10px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        border: '1px solid #E2E8F0',
+                        backgroundColor: '#FFFFFF',
+                        color: '#94A3B8',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                {/* Safe Real-Time Calculation Preview Card */}
+                {parsedAmt > 0 && (
+                  <div style={{
+                    backgroundColor: willBeNegative ? '#FEF2F2' : '#F8FAFC',
+                    border: willBeNegative ? '1px solid #FECACA' : '1px solid #E2E8F0',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    fontSize: '0.8125rem'
+                  }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '8px' }}>
+                      Balance Calculation Preview
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#475569' }}>
+                      <span>Current Balance:</span>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>₹{curBal.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: walletAdjustType === 'credit' ? '#059669' : '#DC2626', fontWeight: 700 }}>
+                      <span>Adjustment ({walletAdjustType === 'credit' ? 'Credit' : 'Debit'}):</span>
+                      <span style={{ fontFamily: 'monospace' }}>
+                        {walletAdjustType === 'credit' ? `+ ₹${parsedAmt.toFixed(2)}` : `- ₹${parsedAmt.toFixed(2)}`}
+                      </span>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      paddingTop: '6px',
+                      borderTop: '1px solid #E2E8F0',
+                      fontSize: '0.9375rem',
+                      fontWeight: 800,
+                      color: willBeNegative ? '#B91C1C' : willBeEligible ? '#047857' : '#D97706'
+                    }}>
+                      <span>Projected New Balance:</span>
+                      <span style={{ fontFamily: 'monospace' }}>₹{projectedBal.toFixed(2)}</span>
+                    </div>
+
+                    {willBeNegative && (
+                      <div style={{ marginTop: '8px', color: '#B91C1C', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                        <span>Warning: This deduction exceeds available funds and puts the wallet into debt.</span>
+                      </div>
+                    )}
+                    {!willBeNegative && willBeEligible && (
+                      <div style={{ marginTop: '8px', color: '#047857', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <CheckCircle2 style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                        <span>Partner will be eligible for instant Local Taxi dispatches (≥ ₹100).</span>
+                      </div>
+                    )}
+                    {!willBeNegative && !willBeEligible && (
+                      <div style={{ marginTop: '8px', color: '#B45309', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Info style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                        <span>Partner requires at least ₹100 to receive Local Taxi dispatches.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Reason / Admin Audit Note */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
+                    Reason / Statement Note *
+                  </label>
+                  <input
+                    type="text"
+                    value={walletAdjustReason}
+                    onChange={(e) => setWalletAdjustReason(e.target.value)}
+                    placeholder="e.g. Deposit via UPI, Commission adjustment, Bonus"
+                    required
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #CBD5E1',
+                      fontSize: '0.8125rem',
+                      outline: 'none',
+                      backgroundColor: '#FFFFFF',
+                      color: '#111827'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                    {[
+                      walletAdjustType === 'credit' ? 'Admin Top-Up' : 'Commission Deduction',
+                      walletAdjustType === 'credit' ? 'Security Deposit' : 'Cancellation Penalty',
+                      walletAdjustType === 'credit' ? 'Referral Bonus' : 'Dispute Adjustment'
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setWalletAdjustReason(preset)}
+                        style={{
+                          padding: '3px 8px',
+                          fontSize: '0.6875rem',
+                          borderRadius: '4px',
+                          border: '1px solid #E2E8F0',
+                          backgroundColor: '#F8FAFC',
+                          color: '#64748B',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Modal Footer Actions */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  gap: '10px',
+                  marginTop: '6px',
+                  paddingTop: '16px',
+                  borderTop: '1px solid #E5E7EB'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAdjustWalletModal(false);
+                      setSelectedVendorForWallet(null);
+                    }}
+                    disabled={isAdjustingWalletLoading}
+                    style={{
+                      padding: '10px 18px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: '#475569',
+                      cursor: isAdjustingWalletLoading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isAdjustingWalletLoading || !parsedAmt || parsedAmt <= 0}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 22px',
+                      backgroundColor: walletAdjustType === 'credit' ? '#059669' : '#DC2626',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      fontWeight: 700,
+                      color: '#FFFFFF',
+                      cursor: isAdjustingWalletLoading || !parsedAmt ? 'not-allowed' : 'pointer',
+                      boxShadow: walletAdjustType === 'credit'
+                        ? '0 1px 3px rgba(5, 150, 105, 0.3)'
+                        : '0 1px 3px rgba(220, 38, 38, 0.3)',
+                      opacity: (!parsedAmt || parsedAmt <= 0) ? 0.6 : 1
+                    }}
+                  >
+                    {isAdjustingWalletLoading ? (
+                      <>
+                        <RefreshCw style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+                        <span>Updating Wallet...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 style={{ width: '16px', height: '16px' }} />
+                        <span>
+                          Confirm {walletAdjustType === 'credit' ? 'Credit' : 'Debit'} {parsedAmt > 0 ? `(₹${parsedAmt.toFixed(2)})` : ''}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ==================================================
+          11. VENDOR WALLET HISTORY & PASSBOOK MODAL
+          ================================================== */}
+      {showWalletHistoryModal && walletHistoryVendor && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            animation: 'fadeIn 0.15s ease'
+          }}
+          onClick={() => {
+            if (!isWalletHistoryLoading) {
+              setShowWalletHistoryModal(false);
+              setWalletHistoryVendor(null);
+              setWalletHistoryData(null);
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '820px',
+              maxHeight: '88vh',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #E5E7EB',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#F8FAFC'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  backgroundColor: '#EFF6FF',
+                  color: '#2563EB',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Receipt style={{ width: '22px', height: '22px' }} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 800, color: '#111827' }}>
+                    Wallet Statement & Passbook
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: '#64748B' }}>
+                    {walletHistoryVendor.vendor_name || 'Vendor'} • {walletHistoryVendor.vendor_phone}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAdjustWallet(walletHistoryVendor, 'credit')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '7px 12px',
+                    backgroundColor: '#059669',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#FFFFFF',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Plus style={{ width: '13px', height: '13px' }} />
+                  <span>Adjust Balance</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWalletHistoryModal(false);
+                    setWalletHistoryVendor(null);
+                    setWalletHistoryData(null);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex'
+                  }}
+                >
+                  <X style={{ width: '20px', height: '20px' }} />
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Status Bar */}
+            <div style={{
+              padding: '14px 24px',
+              backgroundColor: '#FFFFFF',
+              borderBottom: '1px solid #E5E7EB',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                    Live Balance
+                  </div>
+                  <div style={{
+                    fontSize: '1.375rem',
+                    fontWeight: 800,
+                    fontFamily: 'monospace',
+                    color: Number(walletHistoryData?.wallet_balance ?? walletHistoryVendor.wallet_balance ?? 0) >= 100 ? '#047857' : '#DC2626'
+                  }}>
+                    ₹{Number(walletHistoryData?.wallet_balance ?? walletHistoryVendor.wallet_balance ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div style={{ height: '32px', width: '1px', backgroundColor: '#E2E8F0' }} />
+
+                <div>
+                  <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                    Local Taxi Rule
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#334155', marginTop: '2px' }}>
+                    Min ₹100 Required
+                  </div>
+                </div>
+
+                <div style={{ height: '32px', width: '1px', backgroundColor: '#E2E8F0' }} />
+
+                <div>
+                  <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                    Commission Rate
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#334155', marginTop: '2px' }}>
+                    {walletHistoryData?.commission_rate || 10}%
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                {(walletHistoryData?.is_eligible_for_local_taxi ?? (Number(walletHistoryVendor.wallet_balance || 0) >= 100)) ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    backgroundColor: '#D1FAE5',
+                    color: '#065F46'
+                  }}>
+                    <CheckCircle2 style={{ width: '14px', height: '14px' }} />
+                    Active for Local Taxi
+                  </span>
+                ) : (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    backgroundColor: '#FEE2E2',
+                    color: '#991B1B'
+                  }}>
+                    <AlertTriangle style={{ width: '14px', height: '14px' }} />
+                    Insufficient Balance (&lt; ₹100)
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Statement Table Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
+              {isWalletHistoryLoading ? (
+                <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748B' }}>
+                  <RefreshCw style={{ width: '32px', height: '32px', animation: 'spin 1s linear infinite', margin: '0 auto 12px', color: '#10B981' }} />
+                  <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#111827' }}>Loading Passbook Records...</div>
+                  <div style={{ fontSize: '0.8125rem', color: '#64748B', marginTop: '4px' }}>Fetching ledger statement from AWS database</div>
+                </div>
+              ) : (!walletHistoryData?.transactions || walletHistoryData.transactions.length === 0) ? (
+                <div style={{
+                  padding: '50px 20px',
+                  textAlign: 'center',
+                  backgroundColor: '#F8FAFC',
+                  borderRadius: '12px',
+                  border: '1px dashed #CBD5E1'
+                }}>
+                  <Receipt style={{ width: '36px', height: '36px', margin: '0 auto 10px', color: '#94A3B8' }} />
+                  <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#111827' }}>No Transactions Recorded Yet</div>
+                  <p style={{ fontSize: '0.8125rem', color: '#64748B', maxWidth: '420px', margin: '6px auto 16px' }}>
+                    This vendor has no wallet debit/credit ledger entries yet. Transactions will automatically appear when trips are completed, commission is deducted, or wallet is topped up.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAdjustWallet(walletHistoryVendor, 'credit')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      backgroundColor: '#059669',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      color: '#FFFFFF',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Plus style={{ width: '14px', height: '14px' }} />
+                    <span>Perform First Credit Top-Up</span>
+                  </button>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
+                  <thead>
+                    <tr style={{
+                      backgroundColor: '#F8FAFC',
+                      borderBottom: '1px solid #E5E7EB',
+                      color: '#475569',
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em'
+                    }}>
+                      <th style={{ padding: '10px 12px' }}>DATE & TIME</th>
+                      <th style={{ padding: '10px 12px' }}>TYPE</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>AMOUNT</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>BALANCE AFTER</th>
+                      <th style={{ padding: '10px 12px' }}>DESCRIPTION / NOTE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {walletHistoryData.transactions.map((tx, idx) => {
+                      const isCredit = (tx.transaction_type || '').toLowerCase() === 'credit';
+                      const amt = Number(tx.amount || 0);
+
+                      return (
+                        <tr
+                          key={tx.id || idx}
+                          style={{
+                            borderBottom: '1px solid #F1F5F9',
+                            transition: 'background-color 0.15s ease'
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          <td style={{ padding: '12px', color: '#64748B', whiteSpace: 'nowrap' }}>
+                            {tx.created_at ? new Date(tx.created_at).toLocaleString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            }) : '—'}
+                          </td>
+
+                          <td style={{ padding: '12px' }}>
+                            {isCredit ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.6875rem',
+                                fontWeight: 700,
+                                backgroundColor: '#DCFCE7',
+                                color: '#15803D'
+                              }}>
+                                <ArrowUpRight style={{ width: '12px', height: '12px' }} />
+                                CREDIT
+                              </span>
+                            ) : (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.6875rem',
+                                fontWeight: 700,
+                                backgroundColor: '#FEE2E2',
+                                color: '#B91C1C'
+                              }}>
+                                <ArrowDownLeft style={{ width: '12px', height: '12px' }} />
+                                DEBIT
+                              </span>
+                            )}
+                          </td>
+
+                          <td style={{
+                            padding: '12px',
+                            textAlign: 'right',
+                            fontFamily: 'monospace',
+                            fontWeight: 800,
+                            fontSize: '0.875rem',
+                            color: isCredit ? '#047857' : '#DC2626'
+                          }}>
+                            {isCredit ? `+₹${amt.toFixed(2)}` : `-₹${Math.abs(amt).toFixed(2)}`}
+                          </td>
+
+                          <td style={{
+                            padding: '12px',
+                            textAlign: 'right',
+                            fontFamily: 'monospace',
+                            fontWeight: 700,
+                            color: '#111827'
+                          }}>
+                            ₹{Number(tx.balance_after || 0).toFixed(2)}
+                          </td>
+
+                          <td style={{ padding: '12px', color: '#334155' }}>
+                            <div>{tx.description || tx.reason || 'Wallet adjustment'}</div>
+                            {tx.booking_id && (
+                              <span style={{ fontSize: '0.6875rem', color: '#94A3B8', fontFamily: 'monospace' }}>
+                                Ref: #{tx.booking_id}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '14px 24px',
+              borderTop: '1px solid #E5E7EB',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#F8FAFC'
+            }}>
+              <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                Showing {walletHistoryData?.transactions?.length || 0} passbook records
+              </span>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWalletHistoryModal(false);
+                  setWalletHistoryVendor(null);
+                  setWalletHistoryData(null);
+                }}
+                style={{
+                  padding: '8px 18px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: '#475569',
+                  cursor: 'pointer'
+                }}
+              >
+                Close Passbook
+              </button>
             </div>
           </div>
         </div>
