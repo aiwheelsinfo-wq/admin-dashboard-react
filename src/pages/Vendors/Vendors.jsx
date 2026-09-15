@@ -126,6 +126,87 @@ const Vendors = () => {
   const [walletHistoryData, setWalletHistoryData] = useState(null);
   const [isWalletHistoryLoading, setIsWalletHistoryLoading] = useState(false);
 
+  // Global Minimum Wallet Balance Rule State
+  const [minWalletThreshold, setMinWalletThreshold] = useState(0);
+  const [minWalletInput, setMinWalletInput] = useState('0');
+  const [isSavingMinWallet, setIsSavingMinWallet] = useState(false);
+
+  // Fetch global wallet threshold rule from AWS
+  const fetchWalletSettings = async () => {
+    try {
+      const res = await axios.get(`${endpoints.vendorWallet}?action=get_wallet_settings`, { timeout: 10000 });
+      if (res.data && res.data.status === 'success') {
+        const val = Number(res.data.min_wallet_balance || 0);
+        setMinWalletThreshold(val);
+        setMinWalletInput(String(val));
+        return;
+      }
+    } catch (_) {}
+
+    try {
+      const fallbackRes = await axios.get(`${endpoints.vendorsManagement}?action=get_wallet_settings`, { timeout: 8000 });
+      if (fallbackRes.data && fallbackRes.data.status === 'success') {
+        const val = Number(fallbackRes.data.min_wallet_balance || 0);
+        setMinWalletThreshold(val);
+        setMinWalletInput(String(val));
+      }
+    } catch (_) {}
+  };
+
+  // Save new minimum wallet balance rule to AWS
+  const handleSaveMinWallet = async (overrideValue) => {
+    const valueToSave = overrideValue !== undefined ? Number(overrideValue) : Number(minWalletInput);
+    if (isNaN(valueToSave) || valueToSave < 0) {
+      addToast('Please enter a valid non-negative minimum balance amount.', 'error');
+      return;
+    }
+
+    setIsSavingMinWallet(true);
+    try {
+      let success = false;
+      try {
+        const payload = new URLSearchParams();
+        payload.append('action', 'update_min_wallet_balance');
+        payload.append('min_wallet_balance', valueToSave);
+        const res = await axios.post(endpoints.vendorWallet, payload, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 10000
+        });
+        if (res.data && res.data.status === 'success') {
+          success = true;
+        }
+      } catch (err) {
+        console.warn('vendorWallet update failed, trying vendorsManagement...', err);
+      }
+
+      if (!success) {
+        const payload = new URLSearchParams();
+        payload.append('action', 'update_min_wallet_balance');
+        payload.append('min_wallet_balance', valueToSave);
+        const res = await axios.post(endpoints.vendorsManagement, payload, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 10000
+        });
+        if (res.data && res.data.status === 'success') {
+          success = true;
+        }
+      }
+
+      if (success) {
+        setMinWalletThreshold(valueToSave);
+        setMinWalletInput(String(valueToSave));
+        addToast(`Minimum required wallet balance updated to ₹${valueToSave.toLocaleString('en-IN')}. Driver app rules updated immediately.`, 'success');
+      } else {
+        addToast('Failed to update minimum wallet balance.', 'error');
+      }
+    } catch (e) {
+      console.error('Error updating minimum wallet balance:', e);
+      addToast('Server error updating minimum wallet balance.', 'error');
+    } finally {
+      setIsSavingMinWallet(false);
+    }
+  };
+
   // Fetch all vendors and summary stats from AWS
   const fetchVendorsData = async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -158,6 +239,7 @@ const Vendors = () => {
 
   useEffect(() => {
     fetchVendorsData();
+    fetchWalletSettings();
   }, []);
 
   // Distinct sorted cities extracted from vendors data
@@ -206,7 +288,7 @@ const Vendors = () => {
 
       const bal = Number(v.wallet_balance || 0);
       totalWalletFloat += bal;
-      if (bal >= 100) {
+      if (bal >= minWalletThreshold) {
         eligibleWallets++;
       } else {
         lowWallets++;
@@ -230,7 +312,7 @@ const Vendors = () => {
       eligibleWallets,
       lowWallets
     };
-  }, [vendors, stats]);
+  }, [vendors, stats, minWalletThreshold]);
 
   // Fetch detailed vendor fleet & drivers for the drawer
   const handleOpenInspect = async (vendor) => {
@@ -1440,7 +1522,7 @@ const Vendors = () => {
                 boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
               }}>
                 <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase' }}>
-                  Local Taxi Eligible (≥ ₹100)
+                  Local Taxi Eligible (≥ ₹{minWalletThreshold.toLocaleString('en-IN')})
                 </div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#047857' }}>
                   {kpiMetrics.eligibleWallets} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280' }}>/ {vendors.length}</span>
@@ -1454,7 +1536,7 @@ const Vendors = () => {
                 boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
               }}>
                 <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#DC2626', textTransform: 'uppercase' }}>
-                  Low Balance (&lt; ₹100)
+                  Low Balance (&lt; ₹{minWalletThreshold.toLocaleString('en-IN')})
                 </div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#B91C1C' }}>
                   {kpiMetrics.lowWallets} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280' }}>vendors</span>
@@ -1462,6 +1544,140 @@ const Vendors = () => {
               </div>
             </div>
           </div>
+
+          {/* Dynamic Minimum Wallet Balance Configuration Bar */}
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #6EE7B7',
+            borderRadius: '10px',
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '8px',
+                backgroundColor: '#D1FAE5',
+                color: '#059669',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <SlidersHorizontal style={{ width: '17px', height: '17px' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#065F46', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Driver & Vendor Minimum Wallet Rule</span>
+                  <span style={{
+                    backgroundColor: '#ECFDF5',
+                    color: '#059669',
+                    fontSize: '0.6875rem',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid #A7F3D0',
+                    fontWeight: 800
+                  }}>
+                    Active: ₹{minWalletThreshold.toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#047857' }}>
+                  Drivers below this balance cannot accept Local Taxi rides and will be prompted to recharge.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {/* Quick Presets */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {[0, 200, 500, 1000].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setMinWalletInput(String(preset));
+                      handleSaveMinWallet(preset);
+                    }}
+                    style={{
+                      padding: '5px 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: minWalletThreshold === preset ? '1px solid #059669' : '1px solid #E2E8F0',
+                      backgroundColor: minWalletThreshold === preset ? '#ECFDF5' : '#F8FAFC',
+                      color: minWalletThreshold === preset ? '#065F46' : '#475569',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {preset === 0 ? '₹0 (Free)' : `₹${preset}`}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Input */}
+              <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                <span style={{
+                  position: 'absolute',
+                  left: '10px',
+                  color: '#64748B',
+                  fontWeight: 700,
+                  fontSize: '0.8125rem'
+                }}>₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  value={minWalletInput}
+                  onChange={(e) => setMinWalletInput(e.target.value)}
+                  style={{
+                    width: '100px',
+                    padding: '6px 10px 6px 24px',
+                    fontSize: '0.8125rem',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: '1px solid #CBD5E1',
+                    outline: 'none',
+                    color: '#0F172A'
+                  }}
+                  placeholder="500"
+                />
+              </div>
+
+              {/* Save Button */}
+              <button
+                type="button"
+                onClick={() => handleSaveMinWallet()}
+                disabled={isSavingMinWallet}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  backgroundColor: '#10B981',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  cursor: isSavingMinWallet ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(16, 185, 129, 0.2)'
+                }}
+              >
+                {isSavingMinWallet ? (
+                  <RefreshCw style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <CheckCircle2 style={{ width: '14px', height: '14px' }} />
+                )}
+                <span>Update Rule</span>
+              </button>
+            </div>
+          </div>
+
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -1473,7 +1689,7 @@ const Vendors = () => {
           }}>
             <Info style={{ width: '14px', height: '14px', flexShrink: 0 }} />
             <span>
-              <strong>Local Taxi Booking Rule:</strong> Vendors require at least <strong>₹100</strong> in their wallet balance to receive instant ride dispatch alerts. Admins can top up or deduct funds below at any time.
+              <strong>Local Taxi Booking Rule:</strong> Vendors require at least <strong>₹{minWalletThreshold.toLocaleString('en-IN')}</strong> in their wallet balance to receive instant ride dispatch alerts. Admins can top up or deduct funds below at any time.
             </span>
           </div>
         </div>
@@ -1930,7 +2146,7 @@ const Vendors = () => {
                           }}>
                             ₹{Number(vendor.wallet_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
-                          {Number(vendor.wallet_balance || 0) >= 100 ? (
+                          {Number(vendor.wallet_balance || 0) >= minWalletThreshold ? (
                             <span style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -1943,7 +2159,7 @@ const Vendors = () => {
                               borderRadius: '4px'
                             }}>
                               <CheckCircle2 style={{ width: '10px', height: '10px' }} />
-                              Eligible (≥ ₹100)
+                              Eligible (≥ ₹{minWalletThreshold.toLocaleString('en-IN')})
                             </span>
                           ) : (
                             <span style={{
@@ -1958,7 +2174,7 @@ const Vendors = () => {
                               borderRadius: '4px'
                             }}>
                               <AlertTriangle style={{ width: '10px', height: '10px' }} />
-                              Low (&lt; ₹100)
+                              Low (&lt; ₹{minWalletThreshold.toLocaleString('en-IN')})
                             </span>
                           )}
                         </div>
