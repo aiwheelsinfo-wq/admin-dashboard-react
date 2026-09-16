@@ -58,6 +58,7 @@ const OneWayFare = () => {
     discount_active: 0,
     discount_type: 'percentage',
     discount_value: 0.0,
+    min_advance_booking_hours: 5.0,
     row_version: 1
   });
 
@@ -134,6 +135,7 @@ const OneWayFare = () => {
           discount_active: parseInt(s.discount_active ?? 0, 10),
           discount_type: s.discount_type ?? 'percentage',
           discount_value: parseFloat(s.discount_value ?? 0),
+          min_advance_booking_hours: parseFloat(s.min_advance_booking_hours ?? 5.0),
           row_version: parseInt(s.row_version ?? 1, 10)
         });
 
@@ -196,6 +198,7 @@ const OneWayFare = () => {
       formData.append('company_share_type', target.company_share_type);
       formData.append('company_share_value', target.company_share_value);
       formData.append('company_share_basis', target.company_share_basis);
+      formData.append('min_advance_booking_hours', target.min_advance_booking_hours ?? 5.0);
 
       const res = await axios.post(ONEWAY_API_URL, formData);
       if (res.data && res.data.success) {
@@ -776,6 +779,39 @@ const OneWayFare = () => {
 
         {/* Core Feature Cards Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+
+          {/* 1. Pickup Lead Time (Advance Booking Notice) */}
+          <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px', border: '1px solid #fed7aa', background: '#fffaf5' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Clock style={{ width: '15px', height: '15px', color: '#ea580c' }} />
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#0f172a' }}>Pickup Lead Time</span>
+                </div>
+                <Badge variant="orange">Advance Notice</Badge>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>
+                Minimum hours before pickup required for Outstation / One-Way rides.
+              </p>
+            </div>
+            <div>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Required Notice (Hours)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '4px 8px' }}>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max="48"
+                  value={globalSettings.min_advance_booking_hours ?? 5}
+                  onChange={(e) => setGlobalSettings(prev => ({ ...prev, min_advance_booking_hours: Number(e.target.value) }))}
+                  style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a' }}
+                />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ea580c' }}>hrs</span>
+              </div>
+            </div>
+          </div>
 
           {/* 2. Driver Allowance */}
           <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
