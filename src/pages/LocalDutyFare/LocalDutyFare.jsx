@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
+import ToggleSwitch from '../../components/common/ToggleSwitch';
 import {
   Car,
   Clock,
@@ -16,7 +17,9 @@ import {
   TrendingUp,
   Sliders,
   ChevronRight,
-  Database
+  Database,
+  Building2,
+  Wallet
 } from 'lucide-react';
 import { endpoints } from '../../config/api';
 import { useToast } from '../../context/ToastContext';
@@ -29,12 +32,21 @@ const LocalDutyFare = () => {
   const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // Dedicated Local-Duty Global Settings State
+  const [globalSettings, setGlobalSettings] = useState({
+    company_share_active: true,
+    company_share_type: 'percent',
+    company_share_value: 10.0,
+    min_wallet_balance: 0.0
+  });
+  const [savingGlobal, setSavingGlobal] = useState(false);
+
   // Live Simulator State
   const [simCarType, setSimCarType] = useState('Sedan');
   const [simKm, setSimKm] = useState(100); // 80km included, 20 extra
   const [simHours, setSimHours] = useState(10); // 8hr included, 2 extra
 
-  // Fetch Local-Duty Fares from AWS
+  // Fetch Local-Duty Fares and Dedicated Global Settings from AWS
   const fetchFares = async () => {
     setLoading(true);
     try {
@@ -43,6 +55,9 @@ const LocalDutyFare = () => {
       });
       if (res.data && res.data.status === 'success') {
         setVehicles(res.data.vehicles || []);
+        if (res.data.globalSettings) {
+          setGlobalSettings(res.data.globalSettings);
+        }
         setHasUnsavedChanges(false);
       } else {
         addToast(res.data?.message || 'Failed to fetch Local Duty fares', 'error');
@@ -134,6 +149,39 @@ const LocalDutyFare = () => {
       addToast(err.response?.data?.message || err.message || 'Error in bulk save', 'error');
     } finally {
       setIsBulkSaving(false);
+    }
+  };
+
+  // Save Dedicated Local-Duty Commission & Wallet Settings
+  const handleSaveGlobalSettings = async () => {
+    setSavingGlobal(true);
+    try {
+      const res = await axios.post(
+        endpoints.localdutyFareManagement,
+        {
+          action: 'update_global_settings',
+          company_share_active: globalSettings.company_share_active ? 1 : 0,
+          company_share_type: globalSettings.company_share_type,
+          company_share_value: parseFloat(globalSettings.company_share_value) || 10.0,
+          min_wallet_balance: parseFloat(globalSettings.min_wallet_balance) || 0.0
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 10000
+        }
+      );
+      if (res.data && res.data.status === 'success') {
+        addToast('Local Duty platform commission & wallet threshold saved!', 'success');
+        if (res.data.globalSettings) {
+          setGlobalSettings(res.data.globalSettings);
+        }
+      } else {
+        addToast(res.data?.message || 'Failed to update commission settings', 'error');
+      }
+    } catch (err) {
+      addToast(err.response?.data?.message || err.message || 'Error saving commission settings', 'error');
+    } finally {
+      setSavingGlobal(false);
     }
   };
 
@@ -353,6 +401,141 @@ const LocalDutyFare = () => {
           </div>
           <div style={{ fontSize: '1.125rem', fontWeight: 800, color: '#0F172A' }}>tripCostTable</div>
           <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 700, marginTop: '2px' }}>● Live Sync Enabled</div>
+        </div>
+      </div>
+
+      {/* Dedicated Rentox Platform Commission & Wallet Threshold Card */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: '16px',
+        border: '1px solid #E2E8F0',
+        padding: '20px 24px',
+        marginBottom: '24px',
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
+      }}>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '20px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '240px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: '#F5F3FF',
+              color: '#7C3AED',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Building2 style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                Rentox Platform Commission & Wallet Threshold
+              </h3>
+              <p style={{ fontSize: '0.75rem', color: '#64748B', margin: '2px 0 0 0' }}>
+                Dedicated company margin & driver prepaid wallet balance check for Local-Duty
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Commission Active
+              </label>
+              <ToggleSwitch
+                checked={Boolean(globalSettings.company_share_active)}
+                onChange={(val) => setGlobalSettings(prev => ({ ...prev, company_share_active: val }))}
+              />
+            </div>
+
+            <div style={{ minWidth: '130px' }}>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Type
+              </label>
+              <select
+                value={globalSettings.company_share_type}
+                onChange={(e) => setGlobalSettings(prev => ({ ...prev, company_share_type: e.target.value }))}
+                style={{
+                  width: '100%',
+                  background: '#F8FAFC',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                  padding: '7px 10px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  color: '#0F172A',
+                  outline: 'none'
+                }}
+              >
+                <option value="percent">Percentage (%)</option>
+                <option value="flat">Fixed Flat (₹)</option>
+              </select>
+            </div>
+
+            <div style={{ minWidth: '120px' }}>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Commission {globalSettings.company_share_type === 'percent' ? '(%)' : '(₹)'}
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '5px 10px' }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#64748B', marginRight: '6px' }}>
+                  {globalSettings.company_share_type === 'percent' ? '%' : '₹'}
+                </span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={globalSettings.company_share_value}
+                  onChange={(e) => setGlobalSettings(prev => ({ ...prev, company_share_value: e.target.value }))}
+                  style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: '0.875rem', fontWeight: 800, color: '#0F172A' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ minWidth: '140px' }}>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Min Wallet Balance (₹)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '5px 10px' }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#64748B', marginRight: '6px' }}>₹</span>
+                <input
+                  type="number"
+                  step="10"
+                  min="0"
+                  value={globalSettings.min_wallet_balance}
+                  onChange={(e) => setGlobalSettings(prev => ({ ...prev, min_wallet_balance: e.target.value }))}
+                  style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: '0.875rem', fontWeight: 800, color: '#0F172A' }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSaveGlobalSettings}
+              disabled={savingGlobal}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                backgroundColor: '#7C3AED',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                cursor: savingGlobal ? 'not-allowed' : 'pointer',
+                marginTop: '16px'
+              }}
+            >
+              <Save style={{ width: '15px', height: '15px' }} />
+              <span>{savingGlobal ? 'Saving...' : 'Save Settings'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
