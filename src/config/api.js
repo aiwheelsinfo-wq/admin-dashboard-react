@@ -25,6 +25,7 @@ export const endpoints = {
   driverAlertSettings: `${API_BASE_URL}/driver_alert_settings.php`,
   supportChat: `${ADMIN_BASE_URL}/support_chat.php`,
   vendorWallet: `${API_BASE_URL}/vendor_wallet.php`,
+  driverListAgni: `${ADMIN_BASE_URL}/driver_list_Agni.php`,
 };
 
 // Reusable Axios instance with default headers

@@ -41,10 +41,12 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   History,
-  CreditCard
+  CreditCard,
+  Compass
 } from 'lucide-react';
 import { endpoints } from '../../config/api';
 import { useToast } from '../../context/ToastContext';
+import LiveDriverMap from './LiveDriverMap';
 
 const Vendors = () => {
   const { addToast } = useToast();
@@ -60,8 +62,9 @@ const Vendors = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [lastSynced, setLastSynced] = useState(null);
 
-  // Top Level View Tabs: 'vendors' | 'vehicles' | 'drivers' | 'assignments'
+  // Top Level View Tabs: 'vendors' | 'vehicles' | 'drivers' | 'assignments' | 'map'
   const [activeTab, setActiveTab] = useState('vendors');
+  const [mapVendorFilter, setMapVendorFilter] = useState('ALL');
 
   // Search & Detailed Dropdown Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -1461,6 +1464,43 @@ const Vendors = () => {
             ₹{kpiMetrics.totalWalletFloat.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </span>
         </button>
+
+        {/* 5. LIVE DRIVER MAP TAB */}
+        <button
+          onClick={() => {
+            setActiveTab('map');
+            setMapVendorFilter('ALL');
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: activeTab === 'map' ? '#111827' : '#64748B',
+            borderBottom: activeTab === 'map' ? '2px solid #2563EB' : '2px solid transparent',
+            backgroundColor: 'transparent',
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Compass style={{ width: '16px', height: '16px', color: activeTab === 'map' ? '#2563EB' : '#94A3B8' }} />
+          <span>📍 Live Driver Map</span>
+          <span style={{
+            fontSize: '0.75rem',
+            padding: '2px 7px',
+            borderRadius: '10px',
+            backgroundColor: activeTab === 'map' ? '#EFF6FF' : '#F1F5F9',
+            color: activeTab === 'map' ? '#1D4ED8' : '#64748B',
+            fontWeight: 700
+          }}>
+            Live Radar
+          </span>
+        </button>
       </div>
 
       {/* WALLET MANAGEMENT KPI BANNER (when activeTab === 'wallets') */}
@@ -1696,9 +1736,19 @@ const Vendors = () => {
       )}
 
       {/* ==================================================
-          4. SEARCH & FILTER TOOLBAR
+          4. LIVE DRIVER MAP OR SEARCH & TABLE VIEWS
           ================================================== */}
-      <div style={{
+      {activeTab === 'map' ? (
+        <LiveDriverMap
+          vendors={vendors}
+          initialSelectedVendorPhone={mapVendorFilter}
+        />
+      ) : (
+        <>
+          {/* ==================================================
+              4. SEARCH & FILTER TOOLBAR
+              ================================================== */}
+          <div style={{
         backgroundColor: '#FFFFFF',
         borderRadius: '12px',
         border: '1px solid #E5E7EB',
@@ -2321,6 +2371,39 @@ const Vendors = () => {
                           </button>
 
                           <button
+                            onClick={() => {
+                              setMapVendorFilter(vendor.vendor_phone || vendor.phone_number);
+                              setActiveTab('map');
+                            }}
+                            title="View Vendor's Live Drivers on GPS Map"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '7px 11px',
+                              backgroundColor: '#EFF6FF',
+                              border: '1px solid #BFDBFE',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: '#1D4ED8',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#DBEAFE';
+                              e.currentTarget.style.borderColor = '#93C5FD';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#EFF6FF';
+                              e.currentTarget.style.borderColor = '#BFDBFE';
+                            }}
+                          >
+                            <Compass style={{ width: '13px', height: '13px' }} />
+                            <span>Live Map</span>
+                          </button>
+
+                          <button
                             onClick={() => handleOpenInspect(vendor)}
                             style={{
                               display: 'inline-flex',
@@ -2546,6 +2629,8 @@ const Vendors = () => {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* ==================================================
           8. INSPECT FLEET DRAWER (Right-Side Drawer: 460px)
