@@ -20,7 +20,8 @@ import {
   Building2,
   Bell,
   BarChart3,
-  MessageSquare
+  MessageSquare,
+  Briefcase
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -55,6 +56,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
         { to: '/bookings', label: 'Live Bookings', icon: ShieldCheck },
         { to: '/sales-analytics', label: 'Sales & Revenue Analytics', icon: BarChart3, badge: 'Charts', badgeType: 'live' },
         { to: '/vendors', label: 'Vendors & Fleet Partners', icon: Building2, badge: 'Fleet', badgeType: 'fleet' },
+        { to: '/agents', label: 'Agents & Agencies', icon: Briefcase, badge: 'B2B', badgeType: 'fleet' },
         { to: '/support', label: 'Support & Helpdesk', icon: MessageSquare, badge: 'Chat', badgeType: 'live' },
         { to: '/settings', label: 'Settings & Privacy', icon: Settings, badge: 'Security', badgeType: 'auth' },
       ]

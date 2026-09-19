@@ -26,6 +26,7 @@ export const endpoints = {
   supportChat: `${ADMIN_BASE_URL}/support_chat.php`,
   vendorWallet: `${API_BASE_URL}/vendor_wallet.php`,
   driverListAgni: `${ADMIN_BASE_URL}/driver_list_Agni.php`,
+  agentsManagement: `${API_BASE_URL}/admin_agent_api.php`,
 };
 
 // Reusable Axios instance with default headers

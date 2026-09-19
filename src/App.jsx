@@ -20,6 +20,7 @@ import LocalDutyFare from './pages/LocalDutyFare/LocalDutyFare';
 import Vendors from './pages/Vendors/Vendors';
 import DriverAlertSettings from './pages/DriverAlertSettings/DriverAlertSettings';
 import SupportDesk from './pages/Support/SupportDesk';
+import Agents from './pages/Agents/Agents';
 
 function App() {
   return (
@@ -47,6 +48,7 @@ function App() {
                       <Route path="/bookings" element={<Bookings />} />
                       <Route path="/sales-analytics" element={<SalesAnalytics />} />
                       <Route path="/vendors" element={<Vendors />} />
+                      <Route path="/agents" element={<Agents />} />
                       <Route path="/support" element={<SupportDesk />} />
                       <Route path="/driver-alerts" element={<DriverAlertSettings />} />
                       <Route path="/settings" element={<SettingsPrivacy />} />
