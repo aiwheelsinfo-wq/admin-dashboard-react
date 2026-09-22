@@ -46,6 +46,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
     {
       title: 'PRICING & CONFIGURATION',
       items: [
+        { to: '/car-categories', label: 'Car Categories & Fleet Master', icon: Car, badge: 'Fleet', badgeType: 'fleet' },
         { to: '/city-boundaries', label: 'City Boundaries & Geo-Fence', icon: MapPin, badge: 'Geo', badgeType: 'geo' },
         { to: '/special-days', label: 'Festival Surge Calendar', icon: Calendar, badge: 'Holiday', badgeType: 'holiday' },
       ]

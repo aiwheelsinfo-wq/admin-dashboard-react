@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import ToggleSwitch from '../../components/common/ToggleSwitch';
+import Badge from '../../components/common/Badge';
 import {
   Car,
   Clock,
@@ -88,6 +89,48 @@ const LocalDutyFare = () => {
       prev.map(v => (v.id === id ? { ...v, [field]: validVal } : v))
     );
     setHasUnsavedChanges(true);
+  };
+
+  // Toggle vehicle active / blocked status for Local-Duty
+  const handleToggleActive = async (vehicle) => {
+    const isCurrentlyActive = (vehicle.is_active === 1 || vehicle.is_active === '1' || vehicle.is_active === true);
+    const newStatus = !isCurrentlyActive;
+    // Optimistic UI update
+    setVehicles(prev =>
+      prev.map(v => v.id === vehicle.id ? { ...v, is_active: newStatus } : v)
+    );
+
+    try {
+      const res = await axios.post(
+        endpoints.localdutyFareManagement,
+        {
+          action: 'toggle_active',
+          carType: vehicle.carType,
+          is_active: newStatus ? 1 : 0
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 10000
+        }
+      );
+
+      if (res.data && res.data.status === 'success') {
+        addToast(res.data.message, 'success');
+      } else {
+        // Rollback
+        setVehicles(prev =>
+          prev.map(v => v.id === vehicle.id ? { ...v, is_active: !newStatus } : v)
+        );
+        addToast(res.data?.message || 'Failed to toggle status', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      // Rollback
+      setVehicles(prev =>
+        prev.map(v => v.id === vehicle.id ? { ...v, is_active: !newStatus } : v)
+      );
+      addToast(`Failed to toggle ${vehicle.carType}`, 'error');
+    }
   };
 
   // Save single vehicle rate
@@ -574,6 +617,7 @@ const LocalDutyFare = () => {
                   <th style={{ padding: '8px 12px' }}>Driver Allowance</th>
                   <th style={{ padding: '8px 12px' }}>Extra KM (₹)</th>
                   <th style={{ padding: '8px 12px' }}>Extra Hr (₹)</th>
+                  <th style={{ padding: '8px 12px' }}>Status</th>
                   <th style={{ padding: '8px 12px', textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
@@ -725,6 +769,24 @@ const LocalDutyFare = () => {
                           }}
                         />
                       </div>
+                    </td>
+
+                    {/* Status Toggle */}
+                    <td style={{ padding: '14px 12px' }}>
+                      {(() => {
+                        const isActive = (v.is_active === 1 || v.is_active === '1' || v.is_active === true);
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ToggleSwitch
+                              checked={isActive}
+                              onChange={() => handleToggleActive(v)}
+                            />
+                            <Badge variant={isActive ? 'green' : 'slate'}>
+                              {isActive ? 'Active' : 'Blocked'}
+                            </Badge>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Row Save Button */}

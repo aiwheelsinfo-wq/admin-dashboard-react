@@ -21,6 +21,7 @@ import Vendors from './pages/Vendors/Vendors';
 import DriverAlertSettings from './pages/DriverAlertSettings/DriverAlertSettings';
 import SupportDesk from './pages/Support/SupportDesk';
 import Agents from './pages/Agents/Agents';
+import CarCategories from './pages/CarCategories/CarCategories';
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
                   <DashboardLayout>
                     <Routes>
                       <Route path="/" element={<Overview />} />
+                      <Route path="/car-categories" element={<CarCategories />} />
                       <Route path="/oneway-fare" element={<OneWayFare />} />
                       <Route path="/roundtrip-fare" element={<RoundTripFare />} />
                       <Route path="/localduty-fare" element={<LocalDutyFare />} />

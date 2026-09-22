@@ -22,7 +22,8 @@ import {
   Users,
   MapPin,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Navigation
 } from 'lucide-react';
 
 const LocalTaxiFare = () => {
@@ -45,6 +46,9 @@ const LocalTaxiFare = () => {
     night_start: '23:00',
     night_end: '05:00',
     night_multiplier: 1.20,
+    traffic_pricing_active: true,
+    traffic_grace_minutes: 5,
+    traffic_max_cap_minutes: 60,
     gst_active: true,
     gst_rate: 5.0,
     company_share_active: true,
@@ -165,6 +169,50 @@ const LocalTaxiFare = () => {
         [field]: value
       }
     }));
+  };
+
+  const handleToggleActive = async (carType, currentStatus) => {
+    const isCurrentlyActive = (currentStatus === 1 || currentStatus === '1' || currentStatus === true);
+    const newStatus = !isCurrentlyActive;
+    setVehicles(prev => ({
+      ...prev,
+      [carType]: {
+        ...prev[carType],
+        is_active: newStatus
+      }
+    }));
+
+    try {
+      const res = await axios.post(`${API_BASE_URL}/save_local_taxi_settings.php`, {
+        action: 'toggle_active',
+        carType: carType,
+        is_active: newStatus ? 1 : 0
+      });
+
+      if (res.data && res.data.status === 'success') {
+        addToast(res.data.message, 'success');
+      } else {
+        // Rollback
+        setVehicles(prev => ({
+          ...prev,
+          [carType]: {
+            ...prev[carType],
+            is_active: currentStatus
+          }
+        }));
+        addToast(res.data?.message || 'Failed to toggle status', 'error');
+      }
+    } catch (err) {
+      // Rollback
+      setVehicles(prev => ({
+        ...prev,
+        [carType]: {
+          ...prev[carType],
+          is_active: currentStatus
+        }
+      }));
+      addToast(`Error toggling ${carType}`, 'error');
+    }
   };
 
   // Simulator Calculation Logic
@@ -522,6 +570,63 @@ const LocalTaxiFare = () => {
           />
         </div>
 
+        {/* Card: Google Maps Live Traffic Pricing */}
+        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ padding: '8px', borderRadius: '8px', background: '#fffbeb', color: '#b45309' }}>
+                <Navigation style={{ width: '18px', height: '18px' }} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827' }}>Google Maps Traffic Pricing</h3>
+                <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>Real-time road congestion delay compensation</span>
+              </div>
+            </div>
+            <ToggleSwitch
+              checked={globalSettings.traffic_pricing_active}
+              onChange={(checked) => setGlobalSettings(s => ({ ...s, traffic_pricing_active: checked }))}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151' }}>Free Grace Buffer</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  value={globalSettings.traffic_grace_minutes ?? 5}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, traffic_grace_minutes: parseInt(e.target.value) || 0 }))}
+                  className="form-input"
+                  style={{ padding: '6px 10px', fontSize: '0.8125rem' }}
+                />
+                <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>mins free</span>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151' }}>Max Delay Safety Cap</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                <input
+                  type="number"
+                  min="10"
+                  max="180"
+                  value={globalSettings.traffic_max_cap_minutes ?? 60}
+                  onChange={(e) => setGlobalSettings(s => ({ ...s, traffic_max_cap_minutes: parseInt(e.target.value) || 60 }))}
+                  className="form-input"
+                  style={{ padding: '6px 10px', fontSize: '0.8125rem' }}
+                />
+                <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>mins max</span>
+              </div>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0 }}>
+            Applies each vehicle&apos;s waiting charge (e.g. ₹2.00/min for Sedan). Delays exceeding {globalSettings.traffic_grace_minutes ?? 5} mins are charged, capped at {globalSettings.traffic_max_cap_minutes ?? 60} mins. 90% goes to driver payout.
+          </p>
+        </div>
+
         {/* Card 3: GST Tax */}
         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -687,9 +792,20 @@ const LocalTaxiFare = () => {
                     <span style={{ color: '#c2410c', fontWeight: 600 }}>₹{(v.per_km_rate * 1.5).toFixed(2)}</span>
                   </td>
                   <td>
-                    <Badge variant={v.is_active ? 'green' : 'slate'}>
-                      {v.is_active ? 'Active' : 'Disabled'}
-                    </Badge>
+                    {(() => {
+                      const isActive = (v.is_active === 1 || v.is_active === '1' || v.is_active === true);
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <ToggleSwitch
+                            checked={isActive}
+                            onChange={() => handleToggleActive(carType, v.is_active)}
+                          />
+                          <Badge variant={isActive ? 'green' : 'slate'}>
+                            {isActive ? 'Active' : 'Blocked'}
+                          </Badge>
+                        </div>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}

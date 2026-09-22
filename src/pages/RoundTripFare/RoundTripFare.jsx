@@ -104,6 +104,41 @@ const RoundTripFare = () => {
     setHasChanges(true);
   };
 
+  // Toggle vehicle active / blocked status for Round-Trip
+  const handleToggleActive = async (vehicle) => {
+    const isCurrentlyActive = (vehicle.is_active === 1 || vehicle.is_active === '1' || vehicle.is_active === true);
+    const newStatus = !isCurrentlyActive;
+    // Optimistic UI update
+    setVehicles(prev =>
+      prev.map(v => v.id === vehicle.id ? { ...v, is_active: newStatus } : v)
+    );
+
+    try {
+      const formData = new URLSearchParams();
+      formData.append('action', 'toggle_active');
+      formData.append('carType', vehicle.carType);
+      formData.append('is_active', newStatus ? '1' : '0');
+
+      const res = await axios.post(`${endpoints.roundtripFareManagement}?api=1`, formData);
+      if (res.data?.status === 'success') {
+        addToast(res.data.message, 'success');
+      } else {
+        // Rollback
+        setVehicles(prev =>
+          prev.map(v => v.id === vehicle.id ? { ...v, is_active: !newStatus } : v)
+        );
+        addToast(res.data?.message || 'Failed to toggle vehicle status', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      // Rollback
+      setVehicles(prev =>
+        prev.map(v => v.id === vehicle.id ? { ...v, is_active: !newStatus } : v)
+      );
+      addToast(`Failed to toggle ${vehicle.carType}`, 'error');
+    }
+  };
+
   // Save single vehicle
   const handleSaveSingle = async (vehicle) => {
     const kmRate = parseFloat(vehicle.kmRate);
@@ -512,6 +547,9 @@ const RoundTripFare = () => {
                 <th style={{ padding: '14px 18px', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>
                   Sample 2-Day Fare (600 KM)
                 </th>
+                <th style={{ padding: '14px 18px', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>
+                  Status
+                </th>
                 <th style={{ padding: '14px 18px', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', textAlign: 'right' }}>
                   Actions
                 </th>
@@ -632,6 +670,24 @@ const RoundTripFare = () => {
                             (600km × ₹{rateNum} + 2d × ₹{allowNum})
                           </span>
                         </div>
+                      </td>
+
+                      {/* Status Toggle */}
+                      <td style={{ padding: '16px 18px' }}>
+                        {(() => {
+                          const isActive = (v.is_active === 1 || v.is_active === '1' || v.is_active === true);
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <ToggleSwitch
+                                checked={isActive}
+                                onChange={() => handleToggleActive(v)}
+                              />
+                              <Badge variant={isActive ? 'green' : 'slate'}>
+                                {isActive ? 'Active' : 'Blocked'}
+                              </Badge>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Actions */}

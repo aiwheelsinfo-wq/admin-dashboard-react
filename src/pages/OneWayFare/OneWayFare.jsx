@@ -310,16 +310,31 @@ const OneWayFare = () => {
 
   // Toggle Vehicle Active
   const handleToggleVehicleStatus = async (r) => {
-    const action = r.is_active ? 'deactivate_vehicle' : 'activate_vehicle';
+    const isCurrentlyActive = (r.is_active === 1 || r.is_active === '1' || r.is_active === true);
+    const action = isCurrentlyActive ? 'deactivate_vehicle' : 'activate_vehicle';
+    
+    // Optimistic UI update so toggle immediately flips
+    setRules(prev =>
+      prev.map(rule => rule.id === r.id ? { ...rule, is_active: isCurrentlyActive ? 0 : 1 } : rule)
+    );
+
     try {
       const res = await axios.get(`${ONEWAY_API_URL}?action=${action}&id=${r.id}&api=1`);
       if (res.data && res.data.success) {
-        addToast(res.data.message || 'Vehicle status updated!', 'success');
+        addToast(res.data.message || `Vehicle ${isCurrentlyActive ? 'blocked' : 'unlocked'} successfully!`, 'success');
         fetchOneWayData();
       } else {
+        // Rollback
+        setRules(prev =>
+          prev.map(rule => rule.id === r.id ? { ...rule, is_active: isCurrentlyActive ? 1 : 0 } : rule)
+        );
         addToast(res.data?.message || 'Error updating status', 'error');
       }
     } catch (err) {
+      // Rollback
+      setRules(prev =>
+        prev.map(rule => rule.id === r.id ? { ...rule, is_active: isCurrentlyActive ? 1 : 0 } : rule)
+      );
       addToast(err.message || 'Failed to update vehicle status', 'error');
     }
   };
@@ -1082,57 +1097,44 @@ const OneWayFare = () => {
                           : `Global (${globalSettings.company_share_value}%)`}
                       </span>
                     </td>
+                    {/* Status Toggle */}
                     <td>
-                      <span style={{
-                        padding: '2px 8px',
-                        borderRadius: '9999px',
-                        fontSize: '0.6875rem',
-                        fontWeight: 700,
-                        backgroundColor: r.is_active ? '#ecfdf5' : '#f1f5f9',
-                        color: r.is_active ? '#065f46' : '#64748b'
-                      }}>
-                        {r.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                      {(() => {
+                        const isActive = (r.is_active === 1 || r.is_active === '1' || r.is_active === true);
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ToggleSwitch
+                              checked={isActive}
+                              onChange={() => handleToggleVehicleStatus(r)}
+                            />
+                            <Badge variant={isActive ? 'green' : 'slate'}>
+                              {isActive ? 'Active' : 'Blocked'}
+                            </Badge>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => openEditVehicleModal(r)}
-                          style={{
-                            padding: '4px 10px',
-                            background: '#eff6ff',
-                            color: '#1d4ed8',
-                            border: '1px solid #bfdbfe',
-                            borderRadius: '6px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <Edit2 style={{ width: '12px', height: '12px' }} />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleVehicleStatus(r)}
-                          style={{
-                            padding: '4px 8px',
-                            background: r.is_active ? '#fef2f2' : '#ecfdf5',
-                            color: r.is_active ? '#dc2626' : '#059669',
-                            border: `1px solid ${r.is_active ? '#fecaca' : '#a7f3d0'}`,
-                            borderRadius: '6px',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer'
-                          }}
-                          title={r.is_active ? 'Deactivate rule' : 'Activate rule'}
-                        >
-                          {r.is_active ? <Ban style={{ width: '12px', height: '12px' }} /> : <Check style={{ width: '12px', height: '12px' }} />}
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openEditVehicleModal(r)}
+                        style={{
+                          padding: '4px 10px',
+                          background: '#eff6ff',
+                          color: '#1d4ed8',
+                          border: '1px solid #bfdbfe',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Edit2 style={{ width: '12px', height: '12px' }} />
+                        <span>Edit</span>
+                      </button>
                     </td>
                   </tr>
                 ))

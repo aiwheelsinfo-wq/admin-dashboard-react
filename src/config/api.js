@@ -27,6 +27,8 @@ export const endpoints = {
   vendorWallet: `${API_BASE_URL}/vendor_wallet.php`,
   driverListAgni: `${ADMIN_BASE_URL}/driver_list_Agni.php`,
   agentsManagement: `${API_BASE_URL}/admin_agent_api.php`,
+  carCategoryMaster: `${ADMIN_BASE_URL}/car_category_master_api.php`,
+  carCategoryMaster2025: `${API_BASE_URL}/car_category_master_api.php`,
 };
 
 // Reusable Axios instance with default headers
