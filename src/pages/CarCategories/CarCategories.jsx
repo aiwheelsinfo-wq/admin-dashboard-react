@@ -19,6 +19,7 @@ import {
   Layers,
   IndianRupee,
   Save,
+  Upload,
   X
 } from 'lucide-react';
 import { endpoints } from '../../config/api';
@@ -131,8 +132,10 @@ const CarCategories = () => {
     local_allowance: 300,
     local_driver_rate: 1900,
     local_gst: 5,
-    local_agni: 300
+    local_agni: 300,
+    image_url: ''
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const fetchCategories = async () => {
     setLoading(true);
@@ -201,7 +204,8 @@ const CarCategories = () => {
       local_allowance: 300,
       local_driver_rate: 1900,
       local_gst: 5,
-      local_agni: 300
+      local_agni: 300,
+      image_url: ''
     });
     setIsModalOpen(true);
   };
@@ -210,6 +214,7 @@ const CarCategories = () => {
     setModalMode('edit');
     setFormData({
       car_type: cat.car_type,
+      image_url: cat.image_url ?? '',
       oneway_km_rate: cat.oneway?.kmRate ?? 14,
       oneway_base_amount: cat.oneway?.baseAmount ?? 1500,
       oneway_driver_rate: cat.oneway?.driverRate ?? 12,
@@ -233,6 +238,52 @@ const CarCategories = () => {
     setIsModalOpen(true);
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select a valid image file (PNG, JPG, WEBP, SVG)', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      addToast('Image size exceeds 5MB limit', 'error');
+      return;
+    }
+
+    const data = new FormData();
+    data.append('action', 'upload_image');
+    data.append('car_type', formData.car_type || 'car');
+    data.append('image', file);
+
+    setUploadingImage(true);
+    try {
+      let res;
+      try {
+        res = await axios.post(endpoints.carCategoryMaster, data, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } catch (err) {
+        res = await axios.post(endpoints.carCategoryMaster2025, data, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      if (res.data && res.data.status === 'success' && res.data.image_url) {
+        setFormData(prev => ({ ...prev, image_url: res.data.image_url }));
+        addToast('Car image uploaded successfully!', 'success');
+      } else {
+        addToast(res.data?.message || 'Failed to upload image', 'error');
+      }
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      addToast('Failed to upload image to server', 'error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSaveCategory = async (e) => {
     e.preventDefault();
     if (!formData.car_type.trim()) {
@@ -245,6 +296,7 @@ const CarCategories = () => {
       const payload = {
         action: modalMode === 'add' ? 'add_category' : 'update_fares',
         ...formData,
+        image_url: formData.image_url,
         oneway: {
           kmRate: formData.oneway_km_rate,
           baseAmount: formData.oneway_base_amount,
@@ -527,7 +579,7 @@ const CarCategories = () => {
         />
         <StatCard
           icon={Clock}
-          label="Local Duty Enabled"
+          label="Hourly Rental Enabled"
           value={categories.filter(c => c.localduty !== null).length}
           color="success"
           trend="Package Base + Extra KM/Hr"
@@ -574,7 +626,7 @@ const CarCategories = () => {
                 </th>
                 <th>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#059669' }}>
-                    <Clock style={{ width: '14px', height: '14px' }} /> Local Duty Fare
+                    <Clock style={{ width: '14px', height: '14px' }} /> Hourly Rental Fare
                   </div>
                 </th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
@@ -598,21 +650,39 @@ const CarCategories = () => {
                 filteredCategories.map((cat) => (
                   <tr key={cat.car_type}>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{
-                          width: '34px',
-                          height: '34px',
-                          borderRadius: '8px',
-                          backgroundColor: '#fff7ed',
-                          color: '#f59e0b',
-                          fontWeight: 800,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.875rem'
-                        }}>
-                          {cat.car_type.charAt(0)}
-                        </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {cat.image_url ? (
+                          <img
+                            src={cat.image_url}
+                            alt={cat.car_type}
+                            style={{
+                              width: '46px',
+                              height: '36px',
+                              borderRadius: '8px',
+                              objectFit: 'cover',
+                              border: '1px solid #e2e8f0',
+                              backgroundColor: '#f8fafc',
+                              flexShrink: 0
+                            }}
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '8px',
+                            backgroundColor: '#fff7ed',
+                            color: '#f59e0b',
+                            fontWeight: 800,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.875rem',
+                            flexShrink: 0
+                          }}>
+                            {cat.car_type.charAt(0)}
+                          </div>
+                        )}
                         <div>
                           <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', letterSpacing: '0.02em' }}>
                             {cat.car_type}
@@ -846,6 +916,110 @@ const CarCategories = () => {
                 )}
               </div>
 
+              {/* Car Image Upload & URL */}
+              <div style={{
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 800, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Upload style={{ width: '15px', height: '15px', color: '#f59e0b' }} /> CAR IMAGE (PHOTO)
+                  </label>
+                  {formData.image_url && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, image_url: '' }))}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#ef4444',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      Remove Image
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                  {/* Preview Thumbnail */}
+                  <div style={{
+                    width: '80px',
+                    height: '60px',
+                    borderRadius: '10px',
+                    border: '2px dashed #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}>
+                    {formData.image_url ? (
+                      <img
+                        src={formData.image_url}
+                        alt="Car Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=200&q=80'; }}
+                      />
+                    ) : (
+                      <Car style={{ width: '32px', height: '32px', color: '#cbd5e1' }} />
+                    )}
+                  </div>
+
+                  {/* Upload Button & URL field */}
+                  <div style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <label
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 14px',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #d97706',
+                          borderRadius: '8px',
+                          color: '#b45309',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: uploadingImage ? 'not-allowed' : 'pointer',
+                          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                        }}
+                      >
+                        {uploadingImage ? (
+                          <RefreshCw style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />
+                        ) : (
+                          <Upload style={{ width: '14px', height: '14px' }} />
+                        )}
+                        <span>{uploadingImage ? 'Uploading...' : 'Choose File from PC'}</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                      <span style={{ fontSize: '0.6875rem', color: '#64748b' }}>PNG, JPG, WEBP (Max 5MB)</span>
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="Or paste external image URL (https://...)"
+                      value={formData.image_url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, image_url: e.target.value }))}
+                      className="form-input"
+                      style={{ fontSize: '0.75rem', padding: '6px 10px', height: '32px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Trip 1: One-Way Rates */}
               <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '12px', padding: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#92400e', fontWeight: 800, fontSize: '0.8125rem', marginBottom: '12px' }}>
@@ -926,7 +1100,7 @@ const CarCategories = () => {
               {/* Trip 3: Local-Duty Rates */}
               <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #d1fae5', borderRadius: '12px', padding: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#065f46', fontWeight: 800, fontSize: '0.8125rem', marginBottom: '12px' }}>
-                  <Clock style={{ width: '16px', height: '16px', color: '#10b981' }} /> 3. LOCAL DUTY / LOCAL TAXI FARES
+                  <Clock style={{ width: '16px', height: '16px', color: '#10b981' }} /> 3. HOURLY RENTAL / LOCAL TAXI FARES
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
                   <div>

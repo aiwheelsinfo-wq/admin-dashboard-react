@@ -183,7 +183,7 @@ const LocalDutyFare = () => {
       );
 
       if (res.data && res.data.status === 'success') {
-        addToast('All Local Duty vehicle rates & driver allowances saved!', 'success');
+        addToast('All Hourly Rental vehicle rates & driver allowances saved!', 'success');
         setHasUnsavedChanges(false);
       } else {
         addToast(res.data?.message || 'Failed to save all vehicles', 'error');
@@ -214,7 +214,7 @@ const LocalDutyFare = () => {
         }
       );
       if (res.data && res.data.status === 'success') {
-        addToast('Local Duty platform commission & wallet threshold saved!', 'success');
+        addToast('Hourly Rental platform commission & wallet threshold saved!', 'success');
         if (res.data.globalSettings) {
           setGlobalSettings(res.data.globalSettings);
         }
@@ -287,7 +287,7 @@ const LocalDutyFare = () => {
   }, [activeSimVehicle, simKm, simHours]);
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', paddingBottom: '60px' }}>
+    <div style={{ maxWidth: '1440px', width: '100%', margin: '0 auto', paddingBottom: '60px' }}>
       
       {/* 1. Header Banner */}
       <div style={{
@@ -302,7 +302,7 @@ const LocalDutyFare = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748B' }}>Operations</span>
             <span style={{ color: '#CBD5E1' }}>/</span>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#D97706' }}>Local Duty Management</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#D97706' }}>Hourly Rental Management</span>
           </div>
           <h1 style={{
             fontSize: '1.75rem',
@@ -311,7 +311,7 @@ const LocalDutyFare = () => {
             letterSpacing: '-0.02em',
             margin: 0
           }}>
-            Local Duty Fare & Driver Allowance
+            Hourly Rental Fare & Driver Allowance
           </h1>
           <p style={{ fontSize: '0.875rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
             Set standard package fares (80 KM / 8 Hours), extra KM/hour rates, and driver allowances across your fleet.
@@ -582,197 +582,359 @@ const LocalDutyFare = () => {
         </div>
       </div>
 
-      {/* 3. Main Fleet Pricing Grid & Simulator Layout */}
+      {/* 3. Main Fleet Pricing Matrix (Full-Width with Big, Unclipped Rate Fields) */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(450px, 1.6fr) minmax(320px, 1fr)',
-        gap: '24px'
+        backgroundColor: '#FFFFFF',
+        borderRadius: '18px',
+        border: '1px solid #E2E8F0',
+        padding: '28px',
+        boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
+        marginBottom: '28px'
       }}>
-        
-        {/* Left Column: Editable Rates Table */}
         <div style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '16px',
-          border: '1px solid #E2E8F0',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)'
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '22px',
+          flexWrap: 'wrap',
+          gap: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '1.125rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>
                 Vehicle Pricing & Driver Allowance Matrix
               </h2>
-              <p style={{ fontSize: '0.8125rem', color: '#64748B', margin: '4px 0 0 0' }}>
-                Directly adjust base package price, extra km/hour charges, and driver allowance.
-              </p>
+              <span style={{
+                fontSize: '0.6875rem',
+                fontWeight: 800,
+                color: '#D97706',
+                backgroundColor: '#FEF3C7',
+                padding: '3px 10px',
+                borderRadius: '20px',
+                textTransform: 'uppercase'
+              }}>
+                80 KM / 8 Hours Package
+              </span>
             </div>
+            <p style={{ fontSize: '0.8125rem', color: '#64748B', margin: '6px 0 0 0' }}>
+              Adjust standard base fares, driver base payouts, daily allowances, and extra kilometer/hour charges. Changes take effect instantly.
+            </p>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-              <thead>
-                <tr style={{ color: '#64748B', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', textAlign: 'left' }}>
-                  <th style={{ padding: '8px 12px' }}>Vehicle Category</th>
-                  <th style={{ padding: '8px 12px' }}>Base Fare (80km/8hr)</th>
-                  <th style={{ padding: '8px 12px' }}>Driver Allowance</th>
-                  <th style={{ padding: '8px 12px' }}>Extra KM (₹)</th>
-                  <th style={{ padding: '8px 12px' }}>Extra Hr (₹)</th>
-                  <th style={{ padding: '8px 12px' }}>Status</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right' }}>Action</th>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.75rem',
+            color: '#059669',
+            backgroundColor: '#ECFDF5',
+            padding: '7px 14px',
+            borderRadius: '10px',
+            border: '1px solid #A7F3D0',
+            fontWeight: 600
+          }}>
+            <ShieldCheck style={{ width: '15px', height: '15px' }} />
+            <span>Direct Database Connection: <strong>tripCostTable (Local-Duty)</strong></span>
+          </div>
+        </div>
+
+        {/* Spacious Matrix Table */}
+        <div style={{ overflowX: 'auto', paddingBottom: '6px' }}>
+          <table style={{ width: '100%', minWidth: '1060px', borderCollapse: 'separate', borderSpacing: '0 10px' }}>
+            <thead>
+              <tr style={{ color: '#475569', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', textAlign: 'left', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '10px 14px', width: '220px' }}>Vehicle Category</th>
+                <th style={{ padding: '10px 14px', width: '190px' }}>Base Fare (80km/8hr)</th>
+                <th style={{ padding: '10px 14px', width: '170px' }}>Driver Base Payout</th>
+                <th style={{ padding: '10px 14px', width: '160px' }}>Driver Allowance</th>
+                <th style={{ padding: '10px 14px', width: '150px' }}>Extra KM (₹/km)</th>
+                <th style={{ padding: '10px 14px', width: '150px' }}>Extra Hr (₹/hr)</th>
+                <th style={{ padding: '10px 14px', width: '120px' }}>Status</th>
+                <th style={{ padding: '10px 14px', width: '100px', textAlign: 'right' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
+                    <RefreshCw style={{ width: '26px', height: '26px', animation: 'spin 1s linear infinite', margin: '0 auto 10px', color: '#D97706' }} />
+                    <div style={{ fontWeight: 700 }}>Loading live Local Duty configurations from AWS...</div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {vehicles.map((v) => (
+              ) : vehicles.length === 0 ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#94A3B8' }}>
+                    No vehicle categories found for Local-Duty in tripCostTable.
+                  </td>
+                </tr>
+              ) : (
+                vehicles.map((v) => (
                   <tr
                     key={v.id}
                     style={{
                       backgroundColor: '#F8FAFC',
-                      borderRadius: '12px',
+                      borderRadius: '14px',
+                      boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
                       transition: 'all 0.15s ease'
                     }}
                   >
-                    {/* Vehicle Category & Badge */}
-                    <td style={{ padding: '14px 12px', borderRadius: '12px 0 0 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {/* 1. Vehicle Category */}
+                    <td style={{ padding: '16px 14px', borderRadius: '14px 0 0 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '10px',
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '12px',
                           backgroundColor: '#FFF7ED',
-                          border: '1px solid #FED7AA',
+                          border: '1.5px solid #FED7AA',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           color: '#D97706',
                           flexShrink: 0
                         }}>
-                          <Car style={{ width: '18px', height: '18px' }} />
+                          <Car style={{ width: '22px', height: '22px' }} />
                         </div>
                         <div>
-                          <div style={{ fontWeight: 800, fontSize: '0.9375rem', color: '#0F172A' }}>
+                          <div style={{ fontWeight: 900, fontSize: '1rem', color: '#0F172A', letterSpacing: '-0.01em' }}>
                             {v.carType}
                           </div>
-                          <div style={{ fontSize: '0.6875rem', color: '#64748B' }}>
-                            Driver Base: ₹{v.driverRate}
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '0.6875rem',
+                            fontWeight: 700,
+                            color: '#64748B',
+                            marginTop: '2px'
+                          }}>
+                            <span>ID: #{v.id}</span>
+                            <span>•</span>
+                            <span style={{ color: '#D97706' }}>80km/8hr</span>
                           </div>
                         </div>
                       </div>
                     </td>
 
-                    {/* Base Fare Input */}
-                    <td style={{ padding: '14px 12px' }}>
+                    {/* 2. Big Base Fare Input */}
+                    <td style={{ padding: '16px 14px' }}>
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         backgroundColor: '#FFFFFF',
                         border: '1.5px solid #CBD5E1',
-                        borderRadius: '8px',
-                        padding: '6px 10px',
-                        maxWidth: '120px'
+                        borderRadius: '10px',
+                        padding: '8px 12px',
+                        width: '100%',
+                        maxWidth: '170px',
+                        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                        transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
                       }}>
-                        <span style={{ fontSize: '0.8125rem', color: '#64748B', fontWeight: 600, marginRight: '4px' }}>₹</span>
+                        <span style={{
+                          fontSize: '0.875rem',
+                          color: '#D97706',
+                          fontWeight: 800,
+                          backgroundColor: '#FFF7ED',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          marginRight: '8px',
+                          flexShrink: 0
+                        }}>
+                          ₹
+                        </span>
                         <input
                           type="number"
+                          step="50"
+                          min="0"
                           value={v.baseAmount}
                           onChange={(e) => handleFieldChange(v.id, 'baseAmount', e.target.value)}
                           style={{
                             width: '100%',
                             border: 'none',
                             outline: 'none',
-                            fontSize: '0.875rem',
-                            fontWeight: 700,
-                            color: '#0F172A'
+                            fontSize: '1rem',
+                            fontWeight: 800,
+                            color: '#0F172A',
+                            letterSpacing: '0.01em'
                           }}
+                          placeholder="2200"
                         />
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#94A3B8', marginTop: '4px', paddingLeft: '2px' }}>
+                        Customer Package Fare
                       </div>
                     </td>
 
-                    {/* Driver Allowance Input */}
-                    <td style={{ padding: '14px 12px' }}>
+                    {/* 3. Big Driver Base Payout Input (Editable!) */}
+                    <td style={{ padding: '16px 14px' }}>
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         backgroundColor: '#FFFFFF',
-                        border: '1.5px solid #F59E0B',
-                        borderRadius: '8px',
-                        padding: '6px 10px',
-                        maxWidth: '110px'
+                        border: '1.5px solid #A7F3D0',
+                        borderRadius: '10px',
+                        padding: '8px 12px',
+                        width: '100%',
+                        maxWidth: '160px',
+                        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)'
                       }}>
-                        <span style={{ fontSize: '0.8125rem', color: '#D97706', fontWeight: 700, marginRight: '4px' }}>₹</span>
+                        <span style={{
+                          fontSize: '0.875rem',
+                          color: '#059669',
+                          fontWeight: 800,
+                          backgroundColor: '#ECFDF5',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          marginRight: '8px',
+                          flexShrink: 0
+                        }}>
+                          ₹
+                        </span>
                         <input
                           type="number"
+                          step="50"
+                          min="0"
+                          value={v.driverRate}
+                          onChange={(e) => handleFieldChange(v.id, 'driverRate', e.target.value)}
+                          style={{
+                            width: '100%',
+                            border: 'none',
+                            outline: 'none',
+                            fontSize: '0.9375rem',
+                            fontWeight: 800,
+                            color: '#047857'
+                          }}
+                          placeholder="1900"
+                        />
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600, marginTop: '4px', paddingLeft: '2px' }}>
+                        Driver Base Payout
+                      </div>
+                    </td>
+
+                    {/* 4. Big Driver Allowance Input */}
+                    <td style={{ padding: '16px 14px' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: '#FFFFFF',
+                        border: '1.5px solid #FED7AA',
+                        borderRadius: '10px',
+                        padding: '8px 12px',
+                        width: '100%',
+                        maxWidth: '150px',
+                        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)'
+                      }}>
+                        <span style={{
+                          fontSize: '0.875rem',
+                          color: '#D97706',
+                          fontWeight: 800,
+                          backgroundColor: '#FEF3C7',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          marginRight: '8px',
+                          flexShrink: 0
+                        }}>
+                          ₹
+                        </span>
+                        <input
+                          type="number"
+                          step="50"
+                          min="0"
                           value={v.driver_allowance}
                           onChange={(e) => handleFieldChange(v.id, 'driver_allowance', e.target.value)}
                           style={{
                             width: '100%',
                             border: 'none',
                             outline: 'none',
-                            fontSize: '0.875rem',
+                            fontSize: '0.9375rem',
                             fontWeight: 800,
                             color: '#D97706'
                           }}
+                          placeholder="300"
                         />
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#D97706', fontWeight: 600, marginTop: '4px', paddingLeft: '2px' }}>
+                        Per Duty Day
                       </div>
                     </td>
 
-                    {/* Extra KM Rate */}
-                    <td style={{ padding: '14px 12px' }}>
+                    {/* 5. Big Extra KM Rate Input */}
+                    <td style={{ padding: '16px 14px' }}>
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         backgroundColor: '#FFFFFF',
-                        border: '1px solid #CBD5E1',
-                        borderRadius: '8px',
-                        padding: '6px 8px',
-                        maxWidth: '85px'
+                        border: '1.5px solid #CBD5E1',
+                        borderRadius: '10px',
+                        padding: '8px 10px',
+                        width: '100%',
+                        maxWidth: '140px',
+                        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)'
                       }}>
-                        <span style={{ fontSize: '0.75rem', color: '#64748B', marginRight: '4px' }}>₹</span>
+                        <span style={{ fontSize: '0.8125rem', color: '#64748B', fontWeight: 700, marginRight: '4px' }}>₹</span>
                         <input
                           type="number"
+                          step="1"
+                          min="0"
                           value={v.extraKMAmount}
                           onChange={(e) => handleFieldChange(v.id, 'extraKMAmount', e.target.value)}
                           style={{
                             width: '100%',
                             border: 'none',
                             outline: 'none',
-                            fontSize: '0.8125rem',
-                            fontWeight: 700,
+                            fontSize: '0.9375rem',
+                            fontWeight: 800,
                             color: '#0F172A'
                           }}
+                          placeholder="15"
                         />
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94A3B8', marginLeft: '4px' }}>/km</span>
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#94A3B8', marginTop: '4px', paddingLeft: '2px' }}>
+                        After 80 KM
                       </div>
                     </td>
 
-                    {/* Extra Hour Rate */}
-                    <td style={{ padding: '14px 12px' }}>
+                    {/* 6. Big Extra Hour Rate Input */}
+                    <td style={{ padding: '16px 14px' }}>
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         backgroundColor: '#FFFFFF',
-                        border: '1px solid #CBD5E1',
-                        borderRadius: '8px',
-                        padding: '6px 8px',
-                        maxWidth: '85px'
+                        border: '1.5px solid #CBD5E1',
+                        borderRadius: '10px',
+                        padding: '8px 10px',
+                        width: '100%',
+                        maxWidth: '140px',
+                        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)'
                       }}>
-                        <span style={{ fontSize: '0.75rem', color: '#64748B', marginRight: '4px' }}>₹</span>
+                        <span style={{ fontSize: '0.8125rem', color: '#64748B', fontWeight: 700, marginRight: '4px' }}>₹</span>
                         <input
                           type="number"
+                          step="10"
+                          min="0"
                           value={v.extraHoursAmount}
                           onChange={(e) => handleFieldChange(v.id, 'extraHoursAmount', e.target.value)}
                           style={{
                             width: '100%',
                             border: 'none',
                             outline: 'none',
-                            fontSize: '0.8125rem',
-                            fontWeight: 700,
+                            fontSize: '0.9375rem',
+                            fontWeight: 800,
                             color: '#0F172A'
                           }}
+                          placeholder="100"
                         />
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94A3B8', marginLeft: '4px' }}>/hr</span>
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#94A3B8', marginTop: '4px', paddingLeft: '2px' }}>
+                        After 8 Hours
                       </div>
                     </td>
 
-                    {/* Status Toggle */}
-                    <td style={{ padding: '14px 12px' }}>
+                    {/* 7. Status Toggle */}
+                    <td style={{ padding: '16px 14px' }}>
                       {(() => {
                         const isActive = (v.is_active === 1 || v.is_active === '1' || v.is_active === true);
                         return (
@@ -789,221 +951,309 @@ const LocalDutyFare = () => {
                       })()}
                     </td>
 
-                    {/* Row Save Button */}
-                    <td style={{ padding: '14px 12px', textAlign: 'right', borderRadius: '0 12px 12px 0' }}>
+                    {/* 8. Row Save Button */}
+                    <td style={{ padding: '16px 14px', textAlign: 'right', borderRadius: '0 14px 14px 0' }}>
                       <button
                         onClick={() => handleSaveSingle(v)}
                         disabled={savingId === v.id}
                         style={{
-                          padding: '6px 12px',
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid #CBD5E1',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 14px',
+                          backgroundColor: savingId === v.id ? '#F1F5F9' : '#0F172A',
+                          border: 'none',
                           borderRadius: '8px',
                           fontSize: '0.8125rem',
                           fontWeight: 700,
-                          color: '#0F172A',
+                          color: savingId === v.id ? '#94A3B8' : '#FFFFFF',
                           cursor: savingId === v.id ? 'not-allowed' : 'pointer',
-                          transition: 'all 0.15s ease'
+                          transition: 'all 0.15s ease',
+                          boxShadow: savingId === v.id ? 'none' : '0 1px 3px rgba(0,0,0,0.1)'
                         }}
                         title={`Save changes for ${v.carType}`}
                       >
-                        {savingId === v.id ? 'Saving...' : 'Save'}
+                        <Save style={{ width: '13px', height: '13px' }} />
+                        <span>{savingId === v.id ? 'Saving...' : 'Save'}</span>
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-          {/* Table Legend / Note */}
+        {/* Matrix Legend / Help Note */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          marginTop: '20px',
+          padding: '14px 18px',
+          backgroundColor: '#F8FAFC',
+          borderRadius: '12px',
+          border: '1px solid #E2E8F0',
+          fontSize: '0.8125rem',
+          color: '#475569'
+        }}>
+          <Info style={{ width: '18px', height: '18px', color: '#D97706', flexShrink: 0 }} />
+          <div>
+            <strong>Standard Duty Package Rule:</strong> All vehicle rates apply to <strong>80 KM & 8 Hours</strong>. When a ride exceeds 80 km or 8 hours, the system automatically bills the extra kilometer rate and extra hour rate.
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Interactive Duty Fare Testing Studio (Full-Width Studio Card) */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: '18px',
+        border: '1px solid #E2E8F0',
+        padding: '28px',
+        boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '22px' }}>
           <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            backgroundColor: '#EFF6FF',
+            color: '#2563EB',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            marginTop: '18px',
-            padding: '12px 16px',
-            backgroundColor: '#F8FAFC',
-            borderRadius: '10px',
-            border: '1px solid #E2E8F0',
-            fontSize: '0.8125rem',
-            color: '#64748B'
+            justifyContent: 'center'
           }}>
-            <Info style={{ width: '16px', height: '16px', color: '#D97706', flexShrink: 0 }} />
-            <span>
-              All package fares apply to <strong>80 KM & 8 Hours</strong>. When a trip exceeds either limit, extra KM or extra hour rates are automatically added.
-            </span>
+            <Calculator style={{ width: '24px', height: '24px' }} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>
+              Interactive Duty Fare Testing Studio
+            </h3>
+            <p style={{ fontSize: '0.8125rem', color: '#64748B', margin: '3px 0 0 0' }}>
+              Simulate any distance & duration scenario in real time to verify customer billing, driver payouts, and company margins.
+            </p>
           </div>
         </div>
 
-        {/* Right Column: Live Duty Fare Simulator */}
+        {/* 3-Column Studio Grid */}
         <div style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: '16px',
-          border: '1px solid #E2E8F0',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
-          display: 'flex',
-          flexDirection: 'column'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '24px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-            <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              backgroundColor: '#EFF6FF',
-              color: '#2563EB',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Calculator style={{ width: '20px', height: '20px' }} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1.0625rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                Live Duty Fare Simulator
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: '#64748B', margin: '2px 0 0 0' }}>
-                Test any distance & duration scenario in real time
-              </p>
-            </div>
-          </div>
-
-          {/* Vehicle Selector */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
-              Select Vehicle Category
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-              {vehicles.map(v => (
-                <button
-                  key={v.id}
-                  onClick={() => setSimCarType(v.carType)}
-                  style={{
-                    padding: '8px 4px',
-                    border: simCarType === v.carType ? '2px solid #D97706' : '1px solid #E2E8F0',
-                    backgroundColor: simCarType === v.carType ? '#FFF7ED' : '#F8FAFC',
-                    color: simCarType === v.carType ? '#D97706' : '#475569',
-                    borderRadius: '8px',
-                    fontSize: '0.8125rem',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {v.carType}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Test Distance Slider */}
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '6px' }}>
-              <span style={{ fontWeight: 700, color: '#334155' }}>Total Trip Distance</span>
-              <span style={{ fontWeight: 800, color: '#D97706' }}>{simKm} KM</span>
-            </div>
-            <input
-              type="range"
-              min="40"
-              max="250"
-              step="5"
-              value={simKm}
-              onChange={(e) => setSimKm(parseInt(e.target.value))}
-              style={{ width: '100%', accentColor: '#D97706', cursor: 'pointer' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#94A3B8' }}>
-              <span>80 km (Package)</span>
-              <span>{simResults.extraKm > 0 ? `+${simResults.extraKm} Extra KM` : 'No Extra KM'}</span>
-            </div>
-          </div>
-
-          {/* Test Duration Slider */}
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '6px' }}>
-              <span style={{ fontWeight: 700, color: '#334155' }}>Total Trip Duration</span>
-              <span style={{ fontWeight: 800, color: '#D97706' }}>{simHours} Hours</span>
-            </div>
-            <input
-              type="range"
-              min="4"
-              max="16"
-              step="1"
-              value={simHours}
-              onChange={(e) => setSimHours(parseInt(e.target.value))}
-              style={{ width: '100%', accentColor: '#D97706', cursor: 'pointer' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#94A3B8' }}>
-              <span>8 Hours (Package)</span>
-              <span>{simResults.extraHours > 0 ? `+${simResults.extraHours} Extra Hours` : 'No Extra Time'}</span>
-            </div>
-          </div>
-
-          {/* Live Bill Breakdown Box */}
+          {/* Column 1: Test Scenario Controls */}
           <div style={{
             backgroundColor: '#F8FAFC',
-            borderRadius: '12px',
+            borderRadius: '14px',
             border: '1px solid #E2E8F0',
-            padding: '16px',
-            marginBottom: '16px'
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px'
           }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', marginBottom: '10px' }}>
-              Customer Fare Calculation
+            <div style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              1. Scenario Configuration
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '6px', color: '#334155' }}>
-              <span>Base Package (80km / 8hr)</span>
-              <span style={{ fontWeight: 700 }}>₹{simResults.baseAmt.toLocaleString()}</span>
+
+            {/* Vehicle Selection Pills */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: '8px' }}>
+                Select Vehicle Category:
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {vehicles.map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => setSimCarType(v.carType)}
+                    style={{
+                      padding: '8px 14px',
+                      border: simCarType === v.carType ? '2px solid #D97706' : '1px solid #CBD5E1',
+                      backgroundColor: simCarType === v.carType ? '#FFF7ED' : '#FFFFFF',
+                      color: simCarType === v.carType ? '#D97706' : '#334155',
+                      borderRadius: '10px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {v.carType}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '6px', color: '#334155' }}>
-              <span>Extra KM ({simResults.extraKm} km × ₹{activeSimVehicle.extraKMAmount})</span>
-              <span style={{ fontWeight: 700 }}>₹{simResults.extraKmCost.toLocaleString()}</span>
+
+            {/* Distance Slider */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '8px' }}>
+                <span style={{ fontWeight: 700, color: '#334155' }}>Total Trip Distance</span>
+                <span style={{ fontWeight: 900, color: '#D97706', fontSize: '0.9375rem' }}>{simKm} KM</span>
+              </div>
+              <input
+                type="range"
+                min="40"
+                max="250"
+                step="5"
+                value={simKm}
+                onChange={(e) => setSimKm(parseInt(e.target.value))}
+                style={{ width: '100%', accentColor: '#D97706', cursor: 'pointer', height: '6px' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#94A3B8', marginTop: '4px' }}>
+                <span>80 km (Included in Package)</span>
+                <span style={{ fontWeight: 700, color: simResults.extraKm > 0 ? '#D97706' : '#94A3B8' }}>
+                  {simResults.extraKm > 0 ? `+${simResults.extraKm} Extra KM` : 'No Extra KM'}
+                </span>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '6px', color: '#334155' }}>
-              <span>Extra Time ({simResults.extraHours} hr × ₹{activeSimVehicle.extraHoursAmount})</span>
-              <span style={{ fontWeight: 700 }}>₹{simResults.extraHoursCost.toLocaleString()}</span>
+
+            {/* Duration Slider */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '8px' }}>
+                <span style={{ fontWeight: 700, color: '#334155' }}>Total Trip Duration</span>
+                <span style={{ fontWeight: 900, color: '#D97706', fontSize: '0.9375rem' }}>{simHours} Hours</span>
+              </div>
+              <input
+                type="range"
+                min="4"
+                max="16"
+                step="1"
+                value={simHours}
+                onChange={(e) => setSimHours(parseInt(e.target.value))}
+                style={{ width: '100%', accentColor: '#D97706', cursor: 'pointer', height: '6px' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#94A3B8', marginTop: '4px' }}>
+                <span>8 Hours (Included in Package)</span>
+                <span style={{ fontWeight: 700, color: simResults.extraHours > 0 ? '#D97706' : '#94A3B8' }}>
+                  {simResults.extraHours > 0 ? `+${simResults.extraHours} Extra Hours` : 'No Extra Time'}
+                </span>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '6px', color: '#D97706' }}>
-              <span style={{ fontWeight: 700 }}>Driver Allowance (Per Duty)</span>
-              <span style={{ fontWeight: 800 }}>₹{simResults.allowance.toLocaleString()}</span>
+          </div>
+
+          {/* Column 2: Customer Price Breakdown */}
+          <div style={{
+            backgroundColor: '#F8FAFC',
+            borderRadius: '14px',
+            border: '1px solid #E2E8F0',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '14px' }}>
+              2. Customer Bill Breakdown
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '10px', color: '#64748B' }}>
-              <span>GST (5%)</span>
-              <span>₹{simResults.gstCustomer.toLocaleString()}</span>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: '#334155' }}>
+                <span>Base Package (80km / 8hr)</span>
+                <span style={{ fontWeight: 700 }}>₹{simResults.baseAmt.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: '#334155' }}>
+                <span>Extra KM ({simResults.extraKm} km × ₹{activeSimVehicle.extraKMAmount})</span>
+                <span style={{ fontWeight: 700 }}>₹{simResults.extraKmCost.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: '#334155' }}>
+                <span>Extra Time ({simResults.extraHours} hr × ₹{activeSimVehicle.extraHoursAmount})</span>
+                <span style={{ fontWeight: 700 }}>₹{simResults.extraHoursCost.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: '#D97706' }}>
+                <span style={{ fontWeight: 700 }}>Driver Allowance (Per Duty)</span>
+                <span style={{ fontWeight: 800 }}>₹{simResults.allowance.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: '#64748B' }}>
+                <span>GST (5%)</span>
+                <span>₹{simResults.gstCustomer.toLocaleString()}</span>
+              </div>
             </div>
+
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              paddingTop: '10px',
-              borderTop: '1.5px dashed #CBD5E1'
+              paddingTop: '14px',
+              borderTop: '1.5px dashed #CBD5E1',
+              marginTop: '14px'
             }}>
-              <span style={{ fontWeight: 800, fontSize: '0.9375rem', color: '#0F172A' }}>Estimated Customer Total</span>
-              <span style={{ fontWeight: 900, fontSize: '1.35rem', color: '#0F172A' }}>
+              <div>
+                <span style={{ fontWeight: 800, fontSize: '0.875rem', color: '#0F172A', display: 'block' }}>Customer Total Fare</span>
+                <span style={{ fontSize: '0.6875rem', color: '#64748B' }}>Inclusive of GST & Allowance</span>
+              </div>
+              <span style={{ fontWeight: 900, fontSize: '1.5rem', color: '#0F172A' }}>
                 ₹{simResults.totalCustomer.toLocaleString()}
               </span>
             </div>
           </div>
 
-          {/* Driver Payout & Company Share Split */}
+          {/* Column 3: Driver Payout & Company Margin Split */}
           <div style={{
-            backgroundColor: '#ECFDF5',
-            borderRadius: '12px',
-            border: '1px solid #A7F3D0',
-            padding: '14px',
-            marginTop: 'auto'
+            backgroundColor: '#F8FAFC',
+            borderRadius: '14px',
+            border: '1px solid #E2E8F0',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#047857' }}>Estimated Driver Net Payout</span>
-              <span style={{ fontSize: '1rem', fontWeight: 800, color: '#065F46' }}>
-                ₹{simResults.totalDriverPayout.toLocaleString()}
-              </span>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '14px' }}>
+              3. Profit & Payout Split
             </div>
-            <div style={{ fontSize: '0.6875rem', color: '#059669' }}>
-              Includes Base (₹{activeSimVehicle.driverRate}) + Allowance (₹{activeSimVehicle.driver_allowance}) + Extra distance/hours
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: '#047857' }}>
+                <span>Driver Base Payout</span>
+                <span style={{ fontWeight: 700 }}>₹{activeSimVehicle.driverRate?.toLocaleString() || 0}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: '#047857' }}>
+                <span>Driver Allowance</span>
+                <span style={{ fontWeight: 700 }}>₹{simResults.allowance.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: '#047857' }}>
+                <span>Driver Extra Distance / Time</span>
+                <span style={{ fontWeight: 700 }}>
+                  ₹{((simResults.totalDriverPayout || 0) - (activeSimVehicle.driverRate || 0) - (simResults.allowance || 0)).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Split Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
+              <div style={{
+                backgroundColor: '#ECFDF5',
+                borderRadius: '10px',
+                border: '1px solid #A7F3D0',
+                padding: '12px 14px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#047857', display: 'block' }}>Estimated Driver Net</span>
+                  <span style={{ fontSize: '0.6875rem', color: '#059669' }}>Transferred to driver wallet</span>
+                </div>
+                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#065F46' }}>
+                  ₹{simResults.totalDriverPayout.toLocaleString()}
+                </span>
+              </div>
+
+              <div style={{
+                backgroundColor: '#FFFBEB',
+                borderRadius: '10px',
+                border: '1px solid #FDE68A',
+                padding: '12px 14px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400E', display: 'block' }}>Platform Margin</span>
+                  <span style={{ fontSize: '0.6875rem', color: '#B45309' }}>Retained company revenue</span>
+                </div>
+                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#92400E' }}>
+                  ₹{simResults.companyMargin.toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
-
         </div>
-
       </div>
 
     </div>

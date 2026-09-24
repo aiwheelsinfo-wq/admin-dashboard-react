@@ -323,7 +323,7 @@ const Bookings = () => {
         'Customer Name': b.customer_name || 'N/A',
         'Customer Phone': b.customer_phone || 'N/A',
         'Customer Email': b.customer_email || 'N/A',
-        'Trip Type': b.trip_type || 'N/A',
+        'Trip Type': (b.trip_type === 'Local-Duty' || b.trip_type === 'Local-duty') ? 'Hourly Rental' : (b.trip_type || 'N/A'),
         'Vehicle Model / Type': b.car_type || 'N/A',
         'Pickup Location': b.from_address || 'N/A',
         'Drop Location': b.to_address || 'N/A',
@@ -443,7 +443,7 @@ const Bookings = () => {
         `#${b.id}`,
         b.invoice_no || `INV-${b.id}`,
         `${b.customer_name || 'Customer'}\n${b.customer_phone || ''}`,
-        b.trip_type || '—',
+        (b.trip_type === 'Local-Duty' || b.trip_type === 'Local-duty') ? 'Hourly Rental' : (b.trip_type || '—'),
         b.car_type || 'Standard',
         `${b.from_address ? b.from_address.slice(0, 30) : '—'}\n→ ${b.to_address ? b.to_address.slice(0, 30) : '—'}`,
         `${b.pickup_date || ''} ${b.pickup_time || ''}`.trim() || '—',
@@ -563,7 +563,7 @@ const Bookings = () => {
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(`Trip Type: ${b.trip_type || 'One-Way'}`, 310, 118);
+      doc.text(`Trip Type: ${(b.trip_type === 'Local-Duty' || b.trip_type === 'Local-duty') ? 'Hourly Rental' : (b.trip_type || 'One-Way')}`, 310, 118);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       doc.text(`Vehicle: ${b.car_type || 'Standard'}`, 310, 132);
@@ -955,7 +955,7 @@ const Bookings = () => {
               <option value="All">All Trip Types</option>
               <option value="One-way">One-way</option>
               <option value="Round-Trip">Round-Trip</option>
-              <option value="Local-Duty">Local-Duty</option>
+              <option value="Local-Duty">Hourly Rental</option>
               <option value="Local-taxi">Local-taxi</option>
             </select>
           </div>
@@ -1110,7 +1110,7 @@ const Bookings = () => {
                           marginTop: '2px',
                           display: 'inline-block'
                         }}>
-                          {b.trip_type}
+                          {(b.trip_type === 'Local-Duty' || b.trip_type === 'Local-duty') ? 'Hourly Rental' : b.trip_type}
                         </span>
                       </td>
 
@@ -1517,7 +1517,7 @@ const Bookings = () => {
                   </span>
                 </div>
                 <div style={{ fontSize: '0.8125rem', color: '#64748B', marginTop: '2px' }}>
-                  {inspectBooking.trip_type} • {inspectBooking.car_type}
+                  {((inspectBooking.trip_type === 'Local-Duty' || inspectBooking.trip_type === 'Local-duty') ? 'Hourly Rental' : inspectBooking.trip_type)} • {inspectBooking.car_type}
                 </div>
               </div>
 

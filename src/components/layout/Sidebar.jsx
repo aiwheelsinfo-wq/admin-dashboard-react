@@ -39,7 +39,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
         { to: '/driver-alerts', label: 'Driver Alert System', icon: Bell, badge: 'Alerts', badgeType: 'fleet' },
         { to: '/oneway-fare', label: 'One-Way Dynamic Fare', icon: Zap, badge: 'Live', badgeType: 'live' },
         { to: '/roundtrip-fare', label: 'Round-Trip Fare', icon: Repeat, badge: 'Fleet', badgeType: 'fleet' },
-        { to: '/localduty-fare', label: 'Local Duty Fare & Allowance', icon: Clock, badge: 'Rental', badgeType: 'rental' },
+        { to: '/localduty-fare', label: 'Hourly Rental Fare & Allowance', icon: Clock, badge: 'Rental', badgeType: 'rental' },
         { to: '/local-taxi-fare', label: 'Local Taxi Dynamic Fare', icon: Car, badge: 'City', badgeType: 'city' },
       ]
     },

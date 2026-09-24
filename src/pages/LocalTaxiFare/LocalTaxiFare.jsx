@@ -645,7 +645,7 @@ const LocalTaxiFare = () => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             {[5, 12, 18].map(r => (
               <button
                 key={r}
@@ -665,7 +665,30 @@ const LocalTaxiFare = () => {
                 {r}% GST
               </button>
             ))}
+            <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '6px 10px', width: '100px' }}>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="28"
+                value={globalSettings.gst_rate}
+                onChange={(e) => setGlobalSettings(s => ({ ...s, gst_rate: parseFloat(e.target.value) || 0 }))}
+                style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: '0.875rem', fontWeight: 700, color: '#0f172a' }}
+              />
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>%</span>
+            </div>
           </div>
+          <span style={{
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            textAlign: 'center',
+            padding: '6px',
+            borderRadius: '6px',
+            backgroundColor: globalSettings.gst_active ? '#ecfdf5' : '#f1f5f9',
+            color: globalSettings.gst_active ? '#065f46' : '#64748b'
+          }}>
+            {globalSettings.gst_active ? `GST Active (${globalSettings.gst_rate}%)` : 'Tax Exempt (0%)'}
+          </span>
         </div>
 
         {/* Card 4: Platform Share */}
