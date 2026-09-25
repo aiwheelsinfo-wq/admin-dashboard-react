@@ -22,6 +22,7 @@ import DriverAlertSettings from './pages/DriverAlertSettings/DriverAlertSettings
 import SupportDesk from './pages/Support/SupportDesk';
 import Agents from './pages/Agents/Agents';
 import CarCategories from './pages/CarCategories/CarCategories';
+import ServiceAvailability from './pages/ServiceAvailability/ServiceAvailability';
 
 function App() {
   return (
@@ -45,6 +46,7 @@ function App() {
                       <Route path="/roundtrip-fare" element={<RoundTripFare />} />
                       <Route path="/localduty-fare" element={<LocalDutyFare />} />
                       <Route path="/local-taxi-fare" element={<LocalTaxiFare />} />
+                      <Route path="/service-availability" element={<ServiceAvailability />} />
                       <Route path="/special-days" element={<SpecialDays />} />
                       <Route path="/city-boundaries" element={<CityBoundaries />} />
                       <Route path="/bookings" element={<Bookings />} />

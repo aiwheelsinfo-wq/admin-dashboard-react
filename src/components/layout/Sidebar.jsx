@@ -21,7 +21,8 @@ import {
   Bell,
   BarChart3,
   MessageSquare,
-  Briefcase
+  Briefcase,
+  Sliders
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -48,6 +49,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
       items: [
         { to: '/car-categories', label: 'Car Categories & Fleet Master', icon: Car, badge: 'Fleet', badgeType: 'fleet' },
         { to: '/city-boundaries', label: 'City Boundaries & Geo-Fence', icon: MapPin, badge: 'Geo', badgeType: 'geo' },
+        { to: '/service-availability', label: 'Trip Services Availability', icon: Sliders, badge: 'Toggle', badgeType: 'live' },
         { to: '/special-days', label: 'Festival Surge Calendar', icon: Calendar, badge: 'Holiday', badgeType: 'holiday' },
       ]
     },

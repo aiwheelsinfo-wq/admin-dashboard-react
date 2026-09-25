@@ -10,12 +10,12 @@ import {
   Activity,
   ArrowUpRight,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Sliders
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import axios from 'axios';
 import { endpoints } from '../../config/api';
-import ServiceAvailabilityManager from '../../components/common/ServiceAvailabilityManager';
 
 const Overview = () => {
   const [metrics, setMetrics] = useState({
@@ -132,6 +132,10 @@ const Overview = () => {
             <Zap style={{ width: '16px', height: '16px' }} />
             <span>Manage Pricing</span>
           </NavLink>
+          <NavLink to="/service-availability" className="btn-secondary">
+            <Sliders style={{ width: '16px', height: '16px' }} />
+            <span>Trip Availability</span>
+          </NavLink>
           <NavLink to="/special-days" className="btn-secondary">
             <span>Special Surge Calendar</span>
           </NavLink>
@@ -175,11 +179,6 @@ const Overview = () => {
           trendType="up"
           color="emerald"
         />
-      </div>
-
-      {/* Trip Services Master Controls (Coming Soon / Active Toggles) */}
-      <div style={{ marginBottom: '24px' }}>
-        <ServiceAvailabilityManager />
       </div>
 
       {/* Dynamic Demand State Card & Recent Bookings */}
