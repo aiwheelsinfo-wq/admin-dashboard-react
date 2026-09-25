@@ -29,6 +29,8 @@ export const endpoints = {
   agentsManagement: `${API_BASE_URL}/admin_agent_api.php`,
   carCategoryMaster: `${ADMIN_BASE_URL}/car_category_master_api.php`,
   carCategoryMaster2025: `${API_BASE_URL}/car_category_master_api.php`,
+  getServiceStatus: `${API_BASE_URL}/get_service_status.php`,
+  updateServiceStatus: `${API_BASE_URL}/update_service_status.php`,
 };
 
 // Reusable Axios instance with default headers

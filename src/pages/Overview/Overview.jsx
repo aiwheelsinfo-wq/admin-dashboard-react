@@ -15,6 +15,7 @@ import {
 import { NavLink } from 'react-router-dom';
 import axios from 'axios';
 import { endpoints } from '../../config/api';
+import ServiceAvailabilityManager from '../../components/common/ServiceAvailabilityManager';
 
 const Overview = () => {
   const [metrics, setMetrics] = useState({
@@ -174,6 +175,11 @@ const Overview = () => {
           trendType="up"
           color="emerald"
         />
+      </div>
+
+      {/* Trip Services Master Controls (Coming Soon / Active Toggles) */}
+      <div style={{ marginBottom: '24px' }}>
+        <ServiceAvailabilityManager />
       </div>
 
       {/* Dynamic Demand State Card & Recent Bookings */}
