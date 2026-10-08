@@ -23,6 +23,7 @@ import SupportDesk from './pages/Support/SupportDesk';
 import Agents from './pages/Agents/Agents';
 import CarCategories from './pages/CarCategories/CarCategories';
 import ServiceAvailability from './pages/ServiceAvailability/ServiceAvailability';
+import IncidentReports from './pages/IncidentReports/IncidentReports';
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
                       <Route path="/special-days" element={<SpecialDays />} />
                       <Route path="/city-boundaries" element={<CityBoundaries />} />
                       <Route path="/bookings" element={<Bookings />} />
+                      <Route path="/incident-reports" element={<IncidentReports />} />
                       <Route path="/sales-analytics" element={<SalesAnalytics />} />
                       <Route path="/vendors" element={<Vendors />} />
                       <Route path="/agents" element={<Agents />} />
