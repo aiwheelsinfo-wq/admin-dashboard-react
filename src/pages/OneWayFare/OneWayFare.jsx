@@ -26,7 +26,8 @@ import {
   Sliders,
   ShieldCheck,
   HelpCircle,
-  Users
+  Users,
+  CreditCard
 } from 'lucide-react';
 
 const ONEWAY_API_URL = 'https://agnicarrental.com/admin2025/oneway_fare_management.php';
@@ -47,6 +48,9 @@ const OneWayFare = () => {
     company_share_type: 'percentage',
     company_share_value: 15.0,
     company_share_basis: 'subtotal',
+    advance_payment_active: 0,
+    advance_payment_type: 'percentage',
+    advance_payment_value: 10.0,
     driver_allowance_active: 1,
     toll_auto_estimate: 1,
     toll_per_km_rate: 2.25,
@@ -124,6 +128,9 @@ const OneWayFare = () => {
           company_share_type: s.company_share_type ?? 'percentage',
           company_share_value: parseFloat(s.company_share_value ?? 15),
           company_share_basis: s.company_share_basis ?? 'subtotal',
+          advance_payment_active: parseInt(s.advance_payment_active ?? 0, 10),
+          advance_payment_type: s.advance_payment_type ?? 'percentage',
+          advance_payment_value: parseFloat(s.advance_payment_value ?? 10.0),
           driver_allowance_active: parseInt(s.driver_allowance_active ?? 1, 10),
           toll_auto_estimate: parseInt(s.toll_auto_estimate ?? 1, 10),
           toll_per_km_rate: parseFloat(s.toll_per_km_rate ?? 2.25),
@@ -198,6 +205,9 @@ const OneWayFare = () => {
       formData.append('company_share_type', target.company_share_type);
       formData.append('company_share_value', target.company_share_value);
       formData.append('company_share_basis', target.company_share_basis);
+      formData.append('advance_payment_active', target.advance_payment_active ? '1' : '0');
+      formData.append('advance_payment_type', target.advance_payment_type ?? 'percentage');
+      formData.append('advance_payment_value', target.advance_payment_value ?? 10.0);
       formData.append('min_advance_booking_hours', target.min_advance_booking_hours ?? 5.0);
 
       const res = await axios.post(ONEWAY_API_URL, formData);
@@ -361,6 +371,9 @@ const OneWayFare = () => {
       formData.append('company_share_type', globalSettings.company_share_type);
       formData.append('company_share_value', globalSettings.company_share_value);
       formData.append('company_share_basis', globalSettings.company_share_basis);
+      formData.append('advance_payment_active', globalSettings.advance_payment_active ? 1 : 0);
+      formData.append('advance_payment_type', globalSettings.advance_payment_type);
+      formData.append('advance_payment_value', globalSettings.advance_payment_value);
 
       formData.append('driver_allowance_active', globalSettings.driver_allowance_active ? 1 : 0);
       formData.append('gst_active', globalSettings.gst_active ? 1 : 0);
@@ -788,6 +801,96 @@ const OneWayFare = () => {
                 <option value="subtotal">Pre-Tax Subtotal (KM + Allowance + Toll)</option>
                 <option value="base_km">Base KM Charge Only</option>
               </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Customer Advance Payment Card (Mode 2) */}
+        <div className="glass-card" style={{
+          padding: '16px 20px',
+          border: globalSettings.advance_payment_active ? '1px solid #86efac' : '1px solid #e2e8f0',
+          background: globalSettings.advance_payment_active ? '#f0fdf4' : '#ffffff',
+          borderRadius: '12px',
+          transition: 'all 0.2s ease',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: globalSettings.advance_payment_active ? '#dcfce7' : '#f1f5f9',
+                color: globalSettings.advance_payment_active ? '#15803d' : '#64748b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CreditCard style={{ width: '20px', height: '20px' }} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Customer Advance Payment (Mode 2)</h3>
+                  <span style={{
+                    fontSize: '0.625rem',
+                    fontWeight: 800,
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    backgroundColor: globalSettings.advance_payment_active ? '#22c55e' : '#94a3b8',
+                    color: '#ffffff'
+                  }}>
+                    {globalSettings.advance_payment_active ? 'MODE 2 ACTIVE' : 'MODE 1 (DRIVER WALLET)'}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  {globalSettings.advance_payment_active
+                    ? 'Customer pays advance online via Razorpay. Driver collects balance cash. ₹0 driver wallet cut.'
+                    : 'Customer pays ₹0 advance. Driver collects 100% cash, commission cut from driver wallet.'}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <ToggleSwitch
+                checked={Boolean(globalSettings.advance_payment_active)}
+                onChange={(val) => handleToggle('advance_payment_active', val, 'Customer Advance Payment')}
+                label="Enable Advance"
+              />
+            </div>
+
+            <div style={{ minWidth: '150px' }}>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Advance Type
+              </label>
+              <select
+                value={globalSettings.advance_payment_type}
+                disabled={!globalSettings.advance_payment_active}
+                onChange={(e) => setGlobalSettings(prev => ({ ...prev, advance_payment_type: e.target.value }))}
+                style={{ width: '100%', background: globalSettings.advance_payment_active ? '#ffffff' : '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '6px 10px', fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a', outline: 'none' }}
+              >
+                <option value="percentage">Percentage (%)</option>
+                <option value="fixed">Fixed Flat (₹)</option>
+              </select>
+            </div>
+
+            <div style={{ minWidth: '130px' }}>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Advance Value
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', background: globalSettings.advance_payment_active ? '#ffffff' : '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '4px 8px' }}>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  disabled={!globalSettings.advance_payment_active}
+                  value={globalSettings.advance_payment_value}
+                  onChange={(e) => setGlobalSettings(prev => ({ ...prev, advance_payment_value: Number(e.target.value) }))}
+                  style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a' }}
+                />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8' }}>
+                  {globalSettings.advance_payment_type === 'fixed' ? '₹' : '%'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -1438,6 +1541,23 @@ const OneWayFare = () => {
                     <span>🚖 Driver / Partner Net Payout:</span>
                     <strong style={{ fontFamily: 'monospace', color: '#059669' }}>₹{Number(simResult.driver_payout_amount || 0).toLocaleString('en-IN')}</strong>
                   </div>
+
+                  {/* Customer Advance & Balance Split */}
+                  {simResult.advance_payment_active && Number(simResult.advance_amount || 0) > 0 && (
+                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #bbf7d0', fontSize: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#0369a1', marginBottom: '2px' }}>
+                        <span>💳 Customer Advance (Pay Online):</span>
+                        <strong style={{ fontFamily: 'monospace' }}>₹{Number(simResult.advance_amount || 0).toLocaleString('en-IN')}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#166534' }}>
+                        <span>💵 Cash to Collect from Customer:</span>
+                        <strong style={{ fontFamily: 'monospace' }}>₹{Number(simResult.remaining_balance || 0).toLocaleString('en-IN')}</strong>
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#15803d', fontStyle: 'italic', marginTop: '4px' }}>
+                        🛡️ Zero driver wallet deduction (commission covered by advance online)
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '0.8125rem' }}>
