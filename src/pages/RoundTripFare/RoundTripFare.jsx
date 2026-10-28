@@ -21,7 +21,8 @@ import {
   Sparkles,
   AlertCircle,
   Building2,
-  Wallet
+  Wallet,
+  CreditCard
 } from 'lucide-react';
 
 const RoundTripFare = () => {
@@ -37,7 +38,10 @@ const RoundTripFare = () => {
     company_share_active: true,
     company_share_type: 'percent',
     company_share_value: 10.0,
-    min_wallet_balance: 1000.0
+    min_wallet_balance: 1000.0,
+    advance_payment_active: false,
+    advance_payment_type: 'percentage',
+    advance_payment_value: 10.0
   });
   const [savingGlobal, setSavingGlobal] = useState(false);
 
@@ -213,7 +217,10 @@ const RoundTripFare = () => {
           company_share_active: globalSettings.company_share_active ? 1 : 0,
           company_share_type: globalSettings.company_share_type,
           company_share_value: parseFloat(globalSettings.company_share_value) || 10.0,
-          min_wallet_balance: parseFloat(globalSettings.min_wallet_balance) || 1000.0
+          min_wallet_balance: parseFloat(globalSettings.min_wallet_balance) || 1000.0,
+          advance_payment_active: globalSettings.advance_payment_active ? 1 : 0,
+          advance_payment_type: globalSettings.advance_payment_type || 'percentage',
+          advance_payment_value: parseFloat(globalSettings.advance_payment_value) || 10.0
         },
         {
           headers: { 'Content-Type': 'application/json' },
@@ -221,7 +228,7 @@ const RoundTripFare = () => {
         }
       );
       if (res.data && res.data.status === 'success') {
-        addToast('Round-Trip platform commission & wallet threshold saved!', 'success');
+        addToast('Round-Trip platform commission, wallet & customer advance settings saved!', 'success');
         if (res.data.globalSettings) {
           setGlobalSettings(res.data.globalSettings);
         }
@@ -493,6 +500,155 @@ const RoundTripFare = () => {
                 gap: '8px',
                 padding: '9px 18px',
                 backgroundColor: '#7C3AED',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                cursor: savingGlobal ? 'not-allowed' : 'pointer',
+                marginTop: '16px'
+              }}
+            >
+              <Save style={{ width: '15px', height: '15px' }} />
+              <span>{savingGlobal ? 'Saving...' : 'Save Settings'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Customer Advance Payment Card (Mode 2) */}
+      <div style={{
+        backgroundColor: globalSettings.advance_payment_active ? '#F0FDF4' : '#FFFFFF',
+        borderRadius: '16px',
+        border: globalSettings.advance_payment_active ? '1px solid #86EFAC' : '1px solid #E2E8F0',
+        padding: '20px 24px',
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+        transition: 'all 0.2s ease'
+      }}>
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '20px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '260px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              backgroundColor: globalSettings.advance_payment_active ? '#DCFCE7' : '#F1F5F9',
+              color: globalSettings.advance_payment_active ? '#15803D' : '#64748B',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <CreditCard style={{ width: '22px', height: '22px' }} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                  Customer Advance Payment (Mode 2)
+                </h3>
+                <span style={{
+                  fontSize: '0.625rem',
+                  fontWeight: 800,
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  backgroundColor: globalSettings.advance_payment_active ? '#22C55E' : '#94A3B8',
+                  color: '#FFFFFF'
+                }}>
+                  {globalSettings.advance_payment_active ? 'MODE 2 ACTIVE' : 'MODE 1 (DRIVER WALLET)'}
+                </span>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: '#64748B', margin: '3px 0 0 0' }}>
+                {globalSettings.advance_payment_active
+                  ? 'Customer pays advance online via Razorpay. Driver collects remaining balance in cash. ₹0 driver wallet cut.'
+                  : 'Customer pays ₹0 advance. Driver collects 100% cash, commission cut from driver wallet.'}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Enable Advance
+              </label>
+              <ToggleSwitch
+                checked={Boolean(globalSettings.advance_payment_active)}
+                onChange={(val) => setGlobalSettings(prev => ({ ...prev, advance_payment_active: val }))}
+              />
+            </div>
+
+            <div style={{ minWidth: '140px' }}>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Advance Type
+              </label>
+              <select
+                value={globalSettings.advance_payment_type}
+                disabled={!globalSettings.advance_payment_active}
+                onChange={(e) => setGlobalSettings(prev => ({ ...prev, advance_payment_type: e.target.value }))}
+                style={{
+                  width: '100%',
+                  background: globalSettings.advance_payment_active ? '#FFFFFF' : '#F1F5F9',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                  padding: '7px 10px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  color: '#0F172A',
+                  outline: 'none'
+                }}
+              >
+                <option value="percentage">Percentage (%)</option>
+                <option value="fixed">Fixed Flat (₹)</option>
+              </select>
+            </div>
+
+            <div style={{ minWidth: '130px' }}>
+              <label style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                Advance Value {globalSettings.advance_payment_type === 'fixed' ? '(₹)' : '(%)'}
+              </label>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                background: globalSettings.advance_payment_active ? '#FFFFFF' : '#F1F5F9',
+                border: '1px solid #CBD5E1',
+                borderRadius: '8px',
+                padding: '5px 10px'
+              }}>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  disabled={!globalSettings.advance_payment_active}
+                  value={globalSettings.advance_payment_value}
+                  onChange={(e) => setGlobalSettings(prev => ({ ...prev, advance_payment_value: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: 800,
+                    color: '#0F172A'
+                  }}
+                />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94A3B8' }}>
+                  {globalSettings.advance_payment_type === 'fixed' ? '₹' : '%'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSaveGlobalSettings}
+              disabled={savingGlobal}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                backgroundColor: '#0F172A',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '10px',

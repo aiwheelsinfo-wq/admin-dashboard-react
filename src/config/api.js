@@ -33,6 +33,7 @@ export const endpoints = {
   updateServiceStatus: `${API_BASE_URL}/update_service_status.php`,
   incidentReports: `${API_BASE_URL}/get_admin_incident_reports.php`,
   updateIncidentStatus: `${API_BASE_URL}/update_incident_status.php`,
+  usersManagement: `${API_BASE_URL}/admin_users_api.php`,
 };
 
 // Reusable Axios instance with default headers
