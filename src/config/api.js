@@ -36,12 +36,19 @@ export const endpoints = {
   usersManagement: `${API_BASE_URL}/admin_users_api.php`,
 };
 
+const CLIENT_KEY = 'rentox_m_app_sec_2025_9847267465';
+
 // Reusable Axios instance with default headers
 const apiClient = axios.create({
   timeout: 15000,
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
+    'X-Rentox-Client-Key': CLIENT_KEY,
   },
 });
 
+axios.defaults.headers.common['X-Rentox-Client-Key'] = CLIENT_KEY;
+apiClient.defaults.headers.common['X-Rentox-Client-Key'] = CLIENT_KEY;
+
 export default apiClient;
+
