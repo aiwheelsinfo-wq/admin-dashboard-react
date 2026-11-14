@@ -24,7 +24,8 @@ import {
   Briefcase,
   Sliders,
   ShieldAlert,
-  Users
+  Users,
+  PhoneCall
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -59,6 +60,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
       title: 'MANAGEMENT & SECURITY',
       items: [
         { to: '/bookings', label: 'Live Bookings', icon: ShieldCheck },
+        { to: '/specific-bookings', label: 'Specific Number Monitor', icon: PhoneCall, badge: 'Target', badgeType: 'live' },
         { to: '/users', label: 'Customers & Users', icon: Users, badge: 'Users', badgeType: 'live' },
         { to: '/incident-reports', label: 'Incident & Driver Reports', icon: ShieldAlert, badge: 'Safety', badgeType: 'live' },
         { to: '/sales-analytics', label: 'Sales & Revenue Analytics', icon: BarChart3, badge: 'Charts', badgeType: 'live' },
