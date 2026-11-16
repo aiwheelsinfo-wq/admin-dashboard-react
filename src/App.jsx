@@ -25,7 +25,6 @@ import CarCategories from './pages/CarCategories/CarCategories';
 import ServiceAvailability from './pages/ServiceAvailability/ServiceAvailability';
 import IncidentReports from './pages/IncidentReports/IncidentReports';
 import Users from './pages/Users/Users';
-import SpecificBookings from './pages/SpecificBookings/SpecificBookings';
 
 function App() {
   return (
@@ -53,7 +52,6 @@ function App() {
                       <Route path="/special-days" element={<SpecialDays />} />
                       <Route path="/city-boundaries" element={<CityBoundaries />} />
                       <Route path="/bookings" element={<Bookings />} />
-                      <Route path="/specific-bookings" element={<SpecificBookings />} />
                       <Route path="/users" element={<Users />} />
                       <Route path="/incident-reports" element={<IncidentReports />} />
                       <Route path="/sales-analytics" element={<SalesAnalytics />} />
