@@ -24,7 +24,8 @@ import {
   Briefcase,
   Sliders,
   ShieldAlert,
-  Users
+  Users,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -65,6 +66,7 @@ const Sidebar = ({ isOpen, onClose, isCollapsed = false, onToggleCollapse }) => 
         { to: '/vendors', label: 'Vendors & Fleet Partners', icon: Building2, badge: 'Fleet', badgeType: 'fleet' },
         { to: '/agents', label: 'Agents & Agencies', icon: Briefcase, badge: 'B2B', badgeType: 'fleet' },
         { to: '/support', label: 'Support & Helpdesk', icon: MessageSquare, badge: 'Chat', badgeType: 'live' },
+        { to: '/bulk-mailer', label: 'Email Campaigns', icon: Mail, badge: 'Mailer', badgeType: 'live' },
         { to: '/settings', label: 'Settings & Privacy', icon: Settings, badge: 'Security', badgeType: 'auth' },
       ]
     }

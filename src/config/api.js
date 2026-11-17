@@ -34,6 +34,7 @@ export const endpoints = {
   incidentReports: `${API_BASE_URL}/get_admin_incident_reports.php`,
   updateIncidentStatus: `${API_BASE_URL}/update_incident_status.php`,
   usersManagement: `${API_BASE_URL}/admin_users_api.php`,
+  bulkMailer: `${ADMIN_BASE_URL}/bulk_mailer_api.php`,
 };
 
 const CLIENT_KEY = 'rentox_m_app_sec_2025_9847267465';

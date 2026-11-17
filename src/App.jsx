@@ -25,6 +25,7 @@ import CarCategories from './pages/CarCategories/CarCategories';
 import ServiceAvailability from './pages/ServiceAvailability/ServiceAvailability';
 import IncidentReports from './pages/IncidentReports/IncidentReports';
 import Users from './pages/Users/Users';
+import BulkMailer from './pages/BulkMailer/BulkMailer';
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
                       <Route path="/agents" element={<Agents />} />
                       <Route path="/support" element={<SupportDesk />} />
                       <Route path="/driver-alerts" element={<DriverAlertSettings />} />
+                      <Route path="/bulk-mailer" element={<BulkMailer />} />
                       <Route path="/settings" element={<SettingsPrivacy />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
