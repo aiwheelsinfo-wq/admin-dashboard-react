@@ -147,7 +147,7 @@ const BulkMailer = () => {
   const [isLoadingQueue, setIsLoadingQueue] = useState(false);
 
   // Test modal
-  const [testEmail, setTestEmail] = useState('ai.wheels.info@gmail.com');
+  const [testEmail, setTestEmail] = useState('info@rentox.co.in');
   const [isTesting, setIsTesting] = useState(false);
 
   const fileInputRef = useRef(null);
